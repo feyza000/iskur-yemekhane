@@ -1,7 +1,7 @@
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework import viewsets, permissions, generics
+from rest_framework import viewsets, permissions, generics, status
+from rest_framework.decorators import action
 from .models import Menu, Meal, MealRating, MenuLike, SurveyAnswer, User
 from .serializers import (
     MenuSerializer, MealSerializer, UserRegisterSerializer, LoginSerializer
@@ -11,15 +11,55 @@ from .serializers import (
 
 class MenuViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Tüm Menüleri ve tekil bir Menüyü görüntülemek için API endpoint'i.
-
-    ReadOnlyModelViewSet: Sadece 'list' (listeleme) ve 'retrieve' (tekil getirme)
-    aksiyonlarını otomatik olarak sağlar. 
-    Bizim React uygulamamızın yeni menü oluşturmasına (POST) gerek yok,
-    çünkü bunu admin paneli yapıyor. Bu, 'En Az Ayrıcalık İlkesi'dir.
+    Tüm Menüleri ve tekil bir Menüyü görüntüler.
+    Ayrıca menüleri "beğenmek" (like) için bir eylem içerir.
     """
-    queryset = Menu.objects.all().order_by('-date') # En yeni menüler en üstte gelsin
+    queryset = Menu.objects.all().order_by('-date')
     serializer_class = MenuSerializer
+
+    # 3. İZİN (PERMISSION) KONTROLÜ (BEST PRACTICE)
+    # Varsayılan eylemler (list, retrieve) için herkesin izni olsun (AllowAny),
+    # ama 'like' gibi yeni eylemlerimiz için giriş yapmış olma (IsAuthenticated) şartı koyacağız.
+    def get_permissions(self):
+        if self.action == 'like':
+            # 'like' eylemi için giriş yapmış olmak zorunludur
+            return [permissions.IsAuthenticated()]
+        # Diğer tüm eylemler (listeleme, görme) için izin gerekmez
+        return [permissions.AllowAny()]
+
+    # 4. YENİ 'LIKE' EYLEMİ (THE @action BEST PRACTICE)
+    # Bu kod, otomatik olarak 'api/menus/1/like/' gibi bir URL oluşturur.
+    # 'detail=True' -> Tek bir menü (detayı) üzerinde çalışır (PK gerektirir).
+    # 'methods=['post']' -> Bu eylem, sadece POST (veri gönderme) ile çalışır.
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        # pk (primary key) URL'den otomatik olarak gelir (örn: /menus/1/like/)
+        menu = self.get_object() # 1 numaralı menü objesini al
+        
+        # request.user -> Jeton (token) sayesinde kimlik doğrulaması
+        # yapılan kullanıcı objesidir. 'IsAuthenticated' sayesinde
+        # bu objenin varlığından eminiz.
+        user = request.user 
+
+        # 5. MİMARİ KARAR: Bir kullanıcı bir menüyü sadece bir kez beğenebilir.
+        # Biz bunu 'MenuLike' modelimizde 'unique_together' ile
+        # veritabanı seviyesinde garantilemiştik.
+        # Şimdi bunu mantık (logic) seviyesinde de kontrol edelim.
+        if MenuLike.objects.filter(user=user, menu=menu).exists():
+            # Eğer zaten beğenmişse, hata döndür (400 Bad Request)
+            return Response(
+                {'detail': 'Bu menüyü zaten beğendiniz.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 6. Beğeniyi oluştur (veritabanına kaydet)
+        MenuLike.objects.create(user=user, menu=menu)
+        
+        # 7. Başarı cevabı döndür (201 Created)
+        return Response(
+            {'detail': 'Menü başarıyla beğenildi.'},
+            status=status.HTTP_201_CREATED
+        )
 
 class MealViewSet(viewsets.ReadOnlyModelViewSet):
     """

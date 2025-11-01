@@ -141,3 +141,25 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+# Django REST Framework'ün varsayılan ayarlarını yapılandırma
+REST_FRAMEWORK = {
+    # Varsayılan Kimlik Doğrulama Sınıfları
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # 1. Öncelik: Jeton (Token) ile kimlik doğrulamayı dene
+        'rest_framework.authentication.TokenAuthentication', 
+
+        # 2. Öncelik: Oturum (Session) ile kimlik doğrulamayı dene
+        # (Bu, DRF'in 'Taranabilir API' arayüzünde (tarayıcıda) 
+        # hala giriş yapabilmemizi sağlar - Çok kullanışlıdır!)
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+
+    # Varsayılan İzin Sınıfları
+    # (Şimdilik 'AllowAny' (Herkese İzin Ver) olarak bırakabiliriz,
+    # çünkü izinleri 'views.py' içinde (get_permissions) 
+    # tek tek, eylem bazlı yönetiyoruz. Bu daha 'temiz' bir yaklaşımdır.)
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
