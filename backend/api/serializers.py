@@ -25,3 +25,37 @@ class MenuSerializer(serializers.ModelSerializer):
         model = Menu
         # "date" alanı Menü'den, "meals" alanı ilişkiden gelecek
         fields = ['id', 'date', 'meals']
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    """
+    Yeni kullanıcı (öğrenci) kaydı için Serializer.
+    """
+    # 'password' alanı, API'den JSON olarak gelmeli (write_only)
+    # ama API'den JSON olarak geri DÖNMEMELİ (read_only olmaz!).
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+
+    class Meta:
+        model = User
+        fields = ('email', 'username', 'password', 'full_name') # Kayıt için bu alanlar gerekli
+    
+    def validate_email(self, email):
+        """
+        Gereksinim 1: E-postanın '@okul.edu.tr' ile bitmesini zorunlu kıl.
+        """
+        if not email.endswith('@ozal.edu.tr'):
+            raise serializers.ValidationError("Sadece okul e-posta adresleri ile kayıt olunabilir.")
+        return email
+
+    def create(self, validated_data):
+        """
+        Kullanıcı oluşturulurken şifrenin "hash"lenmesi (şifrelenmesi) gerekir.
+        Bu "create" metodunu override ederek (ezerek) bunu sağlıyoruz.
+        """
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            password=validated_data['password'],
+            full_name=validated_data.get('full_name', ''),
+            role='student'  # Gereksinim 2: Kayıt olan herkes 'student' rolündedir.
+        )
+        return user

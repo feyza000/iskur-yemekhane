@@ -1,6 +1,6 @@
-from rest_framework import viewsets
-from .models import Menu, Meal, MealRating, MenuLike, SurveyAnswer
-from .serializers import MenuSerializer, MealSerializer
+from rest_framework import viewsets, permissions, generics
+from .models import Menu, Meal, MealRating, MenuLike, SurveyAnswer, User
+from .serializers import MenuSerializer, MealSerializer, UserRegisterSerializer
 # TODO (Diğer modeller ve serializer'lar da eklenecek)
 
 class MenuViewSet(viewsets.ReadOnlyModelViewSet):
@@ -21,6 +21,16 @@ class MealViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Meal.objects.all()
     serializer_class = MealSerializer
+
+class RegisterView(generics.ListCreateAPIView):
+    """
+    Yeni kullanıcı kaydı (sadece POST) için API endpoint'i.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserRegisterSerializer
+    # Kimlik doğrulaması olmayan (anonim) kullanıcıların
+    # bu endpoint'e erişebilmesi için izin veriyoruz.
+    permission_classes = [permissions.AllowAny]
 
 # TODO BURAYA OYLAMA (MealRating, MenuLike, SurveyAnswer) İÇİN
 # ViewSet'LER GELECEK (sonraki adımlarda)

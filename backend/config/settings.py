@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # --- 3. Parti Uygulamalar ---
     'rest_framework',
     'corsheaders',
+    'rest_framework.authtoken',
 
     #--- Bizim Uygulamalarımız ---
     'api'
