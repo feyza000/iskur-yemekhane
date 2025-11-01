@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth import authenticate
 from .models import Meal, Menu, User # İhtiyacımız olan modelleri import et
 
 class MealSerializer(serializers.ModelSerializer):
@@ -59,3 +60,36 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             role='student'  # Gereksinim 2: Kayıt olan herkes 'student' rolündedir.
         )
         return user
+
+class LoginSerializer(serializers.Serializer):
+    """
+    Giriş için Serializer. 'username' yerine 'email' bekler.
+    """
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        style={'input_type': 'password'}, 
+        trim_whitespace=False
+    )
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if email and password:
+            # Django'nun authenticate fonksiyonunu çağırıyoruz.
+            # USERNAME_FIELD='email' olduğu için, 'username' parametresine
+            # 'email' değişkenimizi yolluyoruz.
+            user = authenticate(request=self.context.get('request'),
+                                username=email, password=password)
+
+            if not user:
+                # E-posta/şifre hatalıysa
+                msg = 'Kullanıcı adı veya şifre hatalı.'
+                raise serializers.ValidationError(msg, code='authorization')
+        else:
+            msg = 'E-posta ve şifre alanları zorunludur.'
+            raise serializers.ValidationError(msg, code='authorization')
+        
+        # Doğrulama başarılıysa, 'user' objesini döndür
+        attrs['user'] = user 
+        return attrs

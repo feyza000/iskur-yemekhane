@@ -1,7 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework.authtoken.views import obtain_auth_token  # Jeton almak için hazır view
-from .views import MenuViewSet, MealViewSet, RegisterView
+from .views import MenuViewSet, MealViewSet, RegisterView, LoginView
 
 # DRF'in Router'ı, ViewSet'ler için URL'leri OTOMATİK olarak oluşturur.
 # Bu, 'api/menus/' ve 'api/menus/<id>/' gibi URL'leri
@@ -20,5 +19,5 @@ urlpatterns = [
     # 2. Giriş (Login) URL'i
     # POST isteği api/login/ adresine geldiğinde, DRF'in hazır view'i çalışacak
     # ve bize bir "token" (jeton) dönecek.
-    path('login/', obtain_auth_token, name='login'),
+    path('login/', LoginView.as_view(), name='login'),
 ]
