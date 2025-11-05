@@ -60,6 +60,39 @@ class MenuViewSet(viewsets.ReadOnlyModelViewSet):
             {'detail': 'Menü başarıyla beğenildi.'},
             status=status.HTTP_201_CREATED
         )
+    
+    @action(detail=True, methods=['post'])
+    def submit_survey(self, request, pk=None):
+        """
+        Bir menü için 3 soruluk anketi kaydeder veya günceller.
+        URL: /api/menus/1/submit_survey/
+        """
+        menu = self.get_object() # Hangi menü olduğunu URL'den (pk) al
+        user = request.user      # Kimin yolladığını jetondan (token) al
+
+        # Gelen JSON verisini ({"q_portion": 4, ...}) al
+        data = request.data
+        
+        # update_or_create
+        # Django'ya diyoruz ki: "Bu 'user' ve 'menu' için bir kayıt ara."
+        # "Eğer bulursan, 'defaults' içindeki verilerle GÜNCELLE."
+        # "Eğer bulamazsan, 'defaults' içindeki verilerle YENİ OLUŞTUR."
+        # Bu, kullanıcının anket cevabını değiştirebilmesini sağlar.
+        survey_answer, created = SurveyAnswer.objects.update_or_create(
+            user=user, 
+            menu=menu,
+            defaults={
+                'q_portion': data.get('q_portion'),
+                'q_taste': data.get('q_taste'),
+                'q_cleanliness': data.get('q_cleanliness')
+            }
+        )
+
+        # Tercümanı kullanarak cevabı temiz bir JSON olarak döndür
+        serializer = SurveyAnswerSerializer(survey_answer)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        
+        return Response(serializer.data, status=status_code)
 
 class MealViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -67,6 +100,37 @@ class MealViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Meal.objects.all()
     serializer_class = MealSerializer
+
+    def get_permissions(self):
+        if self.action == 'rate':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    @action(detail=True, methods=['post'])
+    def rate(self, request, pk=None):
+        """
+        Bir yemeğe 1-5 arası puan verir veya puanı günceller.
+        URL: /api/meals/1/rate/
+        """
+        meal = self.get_object() # Hangi yemek olduğunu URL'den (pk) al
+        user = request.user      # Kimin yolladığını jetondan (token) al
+
+        # Gelen JSON verisini ({"score": 5}) al
+        data = request.data
+
+        # Tıpkı ankette olduğu gibi 'update_or_create' kullanıyoruz.
+        # Bu, kullanıcının puanını sonradan değiştirebilmesini sağlar.
+        rating, created = MealRating.objects.update_or_create(
+            user=user,
+            meal=meal,
+            defaults={'score': data.get('score')}
+        )
+
+        # Cevabı temiz JSON olarak döndür
+        serializer = MealRatingSerializer(rating)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        
+        return Response(serializer.data, status=status_code)
 
 class RegisterView(generics.ListCreateAPIView):
     """
@@ -105,3 +169,4 @@ class LoginView(generics.GenericAPIView):
 
 # TODO BURAYA OYLAMA (MealRating, MenuLike, SurveyAnswer) İÇİN
 # ViewSet'LER GELECEK (sonraki adımlarda)
+
