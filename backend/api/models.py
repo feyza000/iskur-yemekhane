@@ -102,7 +102,7 @@ class SurveyAnswer(models.Model):
     Yemekle ilgili 3 statik anket sorusunun cevabı (Tasarım Belgesi - Tablo 7)
     """
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    meal = models.ForeignKey(Meal, on_delete=models.CASCADE)
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE)
     
     # 1-5 (Katılmıyorum/Katılıyorum) arası Likert skalası
     q_portion = models.PositiveSmallIntegerField() # Porsiyon yeterliydi
@@ -111,7 +111,7 @@ class SurveyAnswer(models.Model):
 
     class Meta:
         # Bir öğrenci bir yemeğe sadece bir kez anket doldurabilir
-        unique_together = ('user', 'meal')
+        unique_together = ('user', 'menu')
 
     def __str__(self):
-        return f"Anket: {self.user.email} -> {self.meal.name}"
+        return f"Anket: {self.user.email} -> {self.menu.date}"
