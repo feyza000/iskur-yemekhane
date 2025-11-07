@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import Meal, Menu, User # İhtiyacımız olan modelleri import et
+from .models import Meal, Menu, User, MealRating, SurveyAnswer
 
 class MealSerializer(serializers.ModelSerializer):
     """
@@ -10,7 +10,6 @@ class MealSerializer(serializers.ModelSerializer):
         model = Meal
         # Hangi alanların JSON'da görüneceğini seçiyoruz
         fields = ['id', 'name', 'category', 'calories', 'allergens']
-
 
 class MenuSerializer(serializers.ModelSerializer):
     """
@@ -93,3 +92,42 @@ class LoginSerializer(serializers.Serializer):
         # Doğrulama başarılıysa, 'user' objesini döndür
         attrs['user'] = user 
         return attrs
+    
+class MealRatingSerializer(serializers.ModelSerializer):
+    """
+    Bir yemeğe 1-5 arası yıldız puanı vermek için Serializer.
+    """
+    class Meta:
+        model = MealRating
+        # JSON'dan sadece 'score' alanını bekliyoruz.
+        fields = ['id', 'user', 'meal', 'score']
+        
+        # 'user' ve 'meal' alanları, isteği yapan kullanıcıdan (request.user)
+        # ve URL'den (pk) geleceği için, JSON'dan (body) gelmemelidir.
+        read_only_fields = ['id', 'user', 'meal']
+
+class MealRatingSerializer(serializers.ModelSerializer):
+    """
+    Bir yemeğe 1-5 arası yıldız puanı vermek için Serializer.
+    """
+    class Meta:
+        model = MealRating
+        # JSON'dan sadece 'score' alanını bekliyoruz.
+        fields = ['id', 'user', 'meal', 'score']
+        
+        # 'user' ve 'meal' alanları, isteği yapan kullanıcıdan (request.user)
+        # ve URL'den (pk) geleceği için, JSON'dan (body) gelmemelidir.
+        read_only_fields = ['id', 'user', 'meal']
+
+class SurveyAnswerSerializer(serializers.ModelSerializer):
+    """
+    Bir menüye anket cevaplarını (3 soru) göndermek için Serializer.
+    """
+    class Meta:
+        model = SurveyAnswer
+        # JSON'dan 3 anket cevabını bekliyoruz.
+        fields = ['id', 'user', 'menu', 'q_portion', 'q_taste', 'q_cleanliness']
+        
+        # 'user' ve 'menu' alanları, view (görünüm) tarafından sağlanacak.
+        read_only_fields = ['id', 'user', 'menu']
+

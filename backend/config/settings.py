@@ -142,6 +142,32 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+# Frontend'in bize hangi BAŞLIKLARI (headers) yollamasına izin verdiğimizi
+# açıkça belirtiyoruz. Bu, 'preflight' (OPTIONS) isteği için gereklidir.
+CORS_ALLOW_HEADERS = [
+    'authorization',  # Jetonumuzu (Token) yollamak için
+    'content-type',   # JSON yollamak için
+
+    # (Aşağıdakiler, 'corsheaders'ın varsayılan olarak izin verdikleridir,
+    #  ama biz açıkça belirterek garantilemiş oluyoruz)
+    'accept',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Frontend'in hangi METOTLARI kullanmasına izin verdiğimizi belirtiyoruz.
+# 'OPTIONS' (preflight) metoduna izin vermek kritiktir.
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS' # Preflight isteğinin kendisi için
+]
+
 # Django REST Framework'ün varsayılan ayarlarını yapılandırma
 REST_FRAMEWORK = {
     # Varsayılan Kimlik Doğrulama Sınıfları

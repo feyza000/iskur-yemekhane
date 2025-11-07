@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import '../App.css'; 
+import RatingForm from '../components/RatingForm';
+import SurveyForm from '../components/SurveyForm';
 
 function HomePage() {
   const [menus, setMenus] = useState([]);
@@ -100,9 +102,11 @@ function HomePage() {
               {menu.meals.map(meal => (
                 <li key={meal.id}>
                   {meal.name} ({meal.calories} kcal)
+                  <RatingForm mealId={meal.id} />                  
                 </li>
               ))}
-            </ul>
+            </ul>            
+                  <SurveyForm menuId={menu.id} />
           </div>
         ))}
       </div>
