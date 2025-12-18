@@ -1,112 +1,81 @@
+// frontend/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { Link } from 'react-router-dom'; // (Opsiyonel: Kayıt linki için)
 
 function LoginPage() {
-  
-  // 1. Form verisi için state (Kontrollü Bileşen)
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    username: '', // Backend "username" bekliyor!
+    password: ''
   });
-
-  // 2. Yüklenme ve Hata state'leri
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // 3. Yönlendirme için
+  const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  // 4. Form input'larını güncelleyen standart fonksiyonumuz
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 5. Form gönderildiğinde (Submit) çalışacak fonksiyon
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Sayfa yenilemeyi engelle
-
-    setLoading(true);
-    setError(null);
+    e.preventDefault();
+    setMessage('');
 
     try {
-      // 6. Django'daki /api/login/ kapısına POST isteği atıyoruz
       const response = await fetch('http://localhost:8000/api/login/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Django'nun 'obtain_auth_token' view'i 'username' ve 'password' bekler
-        body: JSON.stringify(formData), 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
 
-      if (response.ok) {
-        // 7. BAŞARILI GİRİŞ (HTTP 200 OK)
-        // Backend'den gelen JSON'u ({"token": "..."}) al
-        const data = await response.json();
-        
-        // 8. EN KRİTİK ADIM: Jetonu tarayıcının kasasına (localStorage) kaydet
-        // Bu jeton, artık bizim "kimlik kartımız".
-        localStorage.setItem('authToken', data.token);
-        
-        alert('Giriş başarılı! Ana sayfaya yönlendiriliyorsunuz.');
-        // Kullanıcıyı ana sayfaya yönlendir
-        navigate('/'); 
+      const data = await response.json();
 
+      if (response.ok) {
+        // Jetonu kaydet
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data)); // Opsiyonel
+        // Ana sayfaya yönlendir
+        navigate('/');
+        // Sayfayı yenile ki Navbar güncellensin
+        window.location.reload(); 
       } else {
-        // 9. BAŞARISIZ GİRİŞ (HTTP 400 Bad Request)
-        // Django "Kullanıcı adı veya şifre hatalı" derse burası çalışır
-        setError('Kullanıcı adı veya şifre hatalı.');
+        // Hata mesajını göster (Backend'den gelen array veya string olabilir)
+        const errorMsg = data.non_field_errors ? data.non_field_errors[0] : "Giriş yapılamadı.";
+        setMessage(errorMsg);
       }
     } catch (err) {
-      // Ağ hatası (Backend çalışmıyor vb.)
-      setError('Giriş sırasında bir ağ hatası oluştu. Sunucu çalışıyor mu?');
-    } finally {
-      setLoading(false);
+      setMessage("Sunucuya bağlanılamadı.");
     }
   };
 
   return (
-    <div>
-      <h1>Giriş Yap</h1>
-      
-      <form onSubmit={handleSubmit}>
+    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center' }}>
+      <h2 style={{color: 'var(--ozal-cyan)'}}>GİRİŞ YAP</h2>
+      <form onSubmit={handleSubmit} className="menu-card" style={{ gap: '15px' }}>
         <div>
-          <label>E-posta:</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
+          <label>Kullanıcı Adı:</label>
+          <input 
+            type="text" 
+            name="username" 
+            value={formData.username} 
+            onChange={handleChange} 
+            required 
+            placeholder="Kullanıcı adınız..."
           />
         </div>
+        
         <div>
           <label>Şifre:</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
+          <input 
+            type="password" 
+            name="password" 
+            value={formData.password} 
             onChange={handleChange} 
-            required
+            required 
+            placeholder="******"
           />
         </div>
         
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        <button type="submit">GİRİŞ YAP</button>
         
-        <button type="submit" disabled={loading}>
-          {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-        </button>
-        
-        {/* Opsiyonel: Kullanıcının hesabı yoksa kayıt sayfasına link
-        <p>
-          Hesabınız yok mu? <Link to="/register">Buradan kayıt olun</Link>
-        </p>
-        */}
+        {message && <p className="error-msg" style={{marginTop:'10px'}}>{message}</p>}
       </form>
     </div>
   );

@@ -1,133 +1,75 @@
+# backend/api/serializers.py
+
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import Meal, Menu, User, MealRating, SurveyAnswer
+from .models import Survey, Question, Response, Answer, User
+from rest_framework.authtoken.models import Token # Login için
+from django.contrib.auth import authenticate # Login için
 
-class MealSerializer(serializers.ModelSerializer):
-    """
-    Meal (Yemek) modelini JSON'a çevirir.
-    """
-    class Meta:
-        model = Meal
-        # Hangi alanların JSON'da görüneceğini seçiyoruz
-        fields = ['id', 'name', 'category', 'calories', 'allergens']
-
-class MenuSerializer(serializers.ModelSerializer):
-    """
-    Menu (Menü) modelini ve *içindeki yemekleri* JSON'a çevirir.
-    """
-
-    # "meals" alanı, bizim ModelSerializer'ımıza bağlıdır.
-    # DRF, "meals" alanını otomatik olarak tanır ve MealSerializer'ı kullanır.
-    # Biz sadece "iç içe" (nested) gösterim istiyoruz.
-    meals = MealSerializer(many=True, read_only=True) # many=True -> birden fazla yemek var
-
-    class Meta:
-        model = Menu
-        # "date" alanı Menü'den, "meals" alanı ilişkiden gelecek
-        fields = ['id', 'date', 'meals']
-
+# --- KULLANICI İŞLEMLERİ (Aynı kalabilir) ---
 class UserRegisterSerializer(serializers.ModelSerializer):
-    """
-    Yeni kullanıcı (öğrenci) kaydı için Serializer.
-    """
-    # 'password' alanı, API'den JSON olarak gelmeli (write_only)
-    # ama API'den JSON olarak geri DÖNMEMELİ (read_only olmaz!).
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-
+    password = serializers.CharField(write_only=True)
     class Meta:
         model = User
-        fields = ('email', 'username', 'password', 'full_name') # Kayıt için bu alanlar gerekli
-    
-    def validate_email(self, email):
-        """
-        Gereksinim 1: E-postanın '@okul.edu.tr' ile bitmesini zorunlu kıl.
-        """
-        if not email.endswith('@ozal.edu.tr'):
-            raise serializers.ValidationError("Sadece okul e-posta adresleri ile kayıt olunabilir.")
-        return email
-
+        fields = ('username', 'email', 'password')
     def create(self, validated_data):
-        """
-        Kullanıcı oluşturulurken şifrenin "hash"lenmesi (şifrelenmesi) gerekir.
-        Bu "create" metodunu override ederek (ezerek) bunu sağlıyoruz.
-        """
         user = User.objects.create_user(
-            email=validated_data['email'],
             username=validated_data['username'],
-            password=validated_data['password'],
-            full_name=validated_data.get('full_name', ''),
-            role='student'  # Gereksinim 2: Kayıt olan herkes 'student' rolündedir.
+            email=validated_data['email'],
+            password=validated_data['password']
         )
         return user
 
 class LoginSerializer(serializers.Serializer):
-    """
-    Giriş için Serializer. 'username' yerine 'email' bekler.
-    """
-    email = serializers.EmailField()
-    password = serializers.CharField(
-        style={'input_type': 'password'}, 
-        trim_whitespace=False
-    )
+    username = serializers.CharField()
+    password = serializers.CharField()
+    def validate(self, data):
+        user = authenticate(**data)
+        if user and user.is_active:
+            return {'user': user}
+        raise serializers.ValidationError("Giriş bilgileri hatalı.")
 
-    def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
+# --- YENİ ANKET SİSTEMİ SERIALIZERLARI ---
 
-        if email and password:
-            # Django'nun authenticate fonksiyonunu çağırıyoruz.
-            # USERNAME_FIELD='email' olduğu için, 'username' parametresine
-            # 'email' değişkenimizi yolluyoruz.
-            user = authenticate(request=self.context.get('request'),
-                                username=email, password=password)
-
-            if not user:
-                # E-posta/şifre hatalıysa
-                msg = 'Kullanıcı adı veya şifre hatalı.'
-                raise serializers.ValidationError(msg, code='authorization')
-        else:
-            msg = 'E-posta ve şifre alanları zorunludur.'
-            raise serializers.ValidationError(msg, code='authorization')
-        
-        # Doğrulama başarılıysa, 'user' objesini döndür
-        attrs['user'] = user 
-        return attrs
-    
-class MealRatingSerializer(serializers.ModelSerializer):
-    """
-    Bir yemeğe 1-5 arası yıldız puanı vermek için Serializer.
-    """
+class QuestionSerializer(serializers.ModelSerializer):
+    """Anketin içindeki soruları listeler"""
     class Meta:
-        model = MealRating
-        # JSON'dan sadece 'score' alanını bekliyoruz.
-        fields = ['id', 'user', 'meal', 'score']
-        
-        # 'user' ve 'meal' alanları, isteği yapan kullanıcıdan (request.user)
-        # ve URL'den (pk) geleceği için, JSON'dan (body) gelmemelidir.
-        read_only_fields = ['id', 'user', 'meal']
+        model = Question
+        fields = ['id', 'text', 'question_type', 'order', 'options']
 
-class MealRatingSerializer(serializers.ModelSerializer):
-    """
-    Bir yemeğe 1-5 arası yıldız puanı vermek için Serializer.
-    """
+class SurveySerializer(serializers.ModelSerializer):
+    """Anketi ve içindeki soruları listeler (Google Forms gibi)"""
+    questions = QuestionSerializer(many=True, read_only=True) # Soruları içine gömdük
+
     class Meta:
-        model = MealRating
-        # JSON'dan sadece 'score' alanını bekliyoruz.
-        fields = ['id', 'user', 'meal', 'score']
-        
-        # 'user' ve 'meal' alanları, isteği yapan kullanıcıdan (request.user)
-        # ve URL'den (pk) geleceği için, JSON'dan (body) gelmemelidir.
-        read_only_fields = ['id', 'user', 'meal']
+        model = Survey
+        fields = ['id', 'title', 'description', 'questions', 'is_active']
 
-class SurveyAnswerSerializer(serializers.ModelSerializer):
-    """
-    Bir menüye anket cevaplarını (3 soru) göndermek için Serializer.
-    """
+class AnswerSerializer(serializers.ModelSerializer):
+    """Cevap verirken kullanılacak yapı"""
     class Meta:
-        model = SurveyAnswer
-        # JSON'dan 3 anket cevabını bekliyoruz.
-        fields = ['id', 'user', 'menu', 'q_portion', 'q_taste', 'q_cleanliness']
-        
-        # 'user' ve 'menu' alanları, view (görünüm) tarafından sağlanacak.
-        read_only_fields = ['id', 'user', 'menu']
+        model = Answer
+        fields = ['question', 'value']
 
+class ResponseSerializer(serializers.ModelSerializer):
+    """Öğrenci anketi gönderdiğinde çalışacak"""
+    answers = AnswerSerializer(many=True) # İçinde cevaplar listesi olacak
+
+    class Meta:
+        model = Response
+        fields = ['survey', 'answers']
+
+    def create(self, validated_data):
+        # DRF standart create metodu nested (iç içe) yazmayı desteklemez,
+        # o yüzden burayı elimizle yazıyoruz (Mid-Level hareket)
+        answers_data = validated_data.pop('answers')
+        
+        # 1. Önce Cevap Paketini (Response) oluştur
+        # user bilgisini view içerisinden perform_create ile alacağız veya context'ten
+        user = self.context['request'].user
+        response = Response.objects.create(user=user, **validated_data)
+
+        # 2. Sonra içindeki tekil cevapları (Answer) oluştur ve pakete bağla
+        for answer_data in answers_data:
+            Answer.objects.create(response=response, **answer_data)
+
+        return response

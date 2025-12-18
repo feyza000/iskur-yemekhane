@@ -134,7 +134,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'api.User'
+#AUTH_USER_MODEL = 'api.User'
 
 # Frontend'imizin (Vite/React) çalıştığı adrese izin veriyoruz.
 CORS_ALLOWED_ORIGINS = [

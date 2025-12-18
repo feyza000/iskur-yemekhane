@@ -1,103 +1,71 @@
 // frontend/src/pages/HomePage.jsx
 import { useState, useEffect } from 'react';
-import '../App.css';
-import RatingForm from '../components/RatingForm';
+import '../App.css'; 
 import SurveyForm from '../components/SurveyForm';
 
 function HomePage() {
-  const [menus, setMenus] = useState([]);
+  const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // (Basitlik olsun diye sadece UI için "likedMenus" state'i tutalım)
-  // Normalde bunu backend'den çekmemiz gerekir.
-  const [likedMenus, setLikedMenus] = useState({}); 
 
   useEffect(() => {
-    const fetchMenus = async () => {
+    const fetchSurveys = async () => {
       try {
-        setLoading(true);
-        const response = await fetch('http://localhost:8000/api/menus/');
-        const data = await response.json();
-        setMenus(data);
+        const token = localStorage.getItem('authToken');
+        // ARTIK MENÜLERİ DEĞİL, ANKETLERİ ÇEKİYORUZ
+        const response = await fetch('http://localhost:8000/api/surveys/', {
+            headers: token ? { 'Authorization': `Token ${token}` } : {}
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSurveys(data);
+        } else {
+            console.error("Anketler çekilemedi");
+        }
       } catch (error) {
         console.error("Hata:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchMenus();
+    fetchSurveys();
   }, []);
 
-  const handleLike = async (menuId) => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      alert("Giriş yapmalısın kanki.");
-      return;
-    }
-
-    // İsteği atmadan önce UI'da hemen kalbi boyayalım (Optimistic UI)
-    setLikedMenus(prev => ({ ...prev, [menuId]: true }));
-
-    try {
-      const response = await fetch(`http://localhost:8000/api/menus/${menuId}/like/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        },
-      });
-
-      if (!response.ok) {
-        // Hata olursa geri al (Hata mesajını şimdilik boşverelim UI bozulmasın)
-        // const errorData = await response.json();
-        // alert(errorData.detail); 
-      }
-    } catch (err) {
-      alert("Ağ hatası.");
-    }
-  };
-
-  if (loading) return <div style={{textAlign:'center', marginTop:'50px'}}>Yükleniyor...</div>;
+  if (loading) return <div style={{textAlign:'center', marginTop:'50px', color:'#fff'}}>Yükleniyor...</div>;
 
   return (
     <div className="App">
+      
+      {/* BAŞLIK */}
+      <div style={{textAlign:'center', marginBottom:'30px'}}>
+        <h1 style={{color:'var(--ozal-orange)', fontSize:'2.5rem', textShadow:'0 0 10px rgba(0,0,0,0.5)'}}>
+           ANKET SİSTEMİ
+        </h1>
+        <p style={{color:'var(--text-muted)'}}>Aktif etkinlikleri ve hizmetleri değerlendirin.</p>
+      </div>
+
       <div className="menu-list">
-        {menus.map(menu => (
-          <div key={menu.id} className="menu-card">
-            
-            {/* ÜST KISIM: Tarih ve Kalp */}
-            <div className="menu-header">
-              <h2>{menu.date}</h2>
-              <button 
-                className={`like-btn ${likedMenus[menu.id] ? 'liked' : ''}`}
-                onClick={() => handleLike(menu.id)}
-                title="Menüyü Beğen"
-              >
-                {likedMenus[menu.id] ? '♥' : '♡'}
-              </button>
-            </div>
+        {surveys.length === 0 ? (
+            <div style={{color:'#fff', fontSize:'1.2rem'}}>Şu an aktif bir anket bulunmuyor.</div>
+        ) : (
+            surveys.map(survey => (
+            <div key={survey.id} className="menu-card" style={{maxWidth:'600px', flex:'1 1 500px'}}>
+                
+                {/* ANKET BAŞLIĞI */}
+                <div className="menu-header" style={{flexDirection:'column', alignItems:'flex-start', gap:'10px'}}>
+                    <h2 style={{color:'var(--ozal-cyan)'}}>{survey.title}</h2>
+                    <p style={{color:'var(--text-muted)', fontSize:'0.9rem', margin:0}}>
+                        {survey.description}
+                    </p>
+                </div>
 
-            {/* YEMEKLER */}
-            <ul>
-              {menu.meals.map(meal => (
-                <li key={meal.id} className="meal-item">
-                  <div className="meal-info">
-                    <span>{meal.name}</span>
-                    <span style={{color: '#99aabb', fontSize: '0.9rem'}}>{meal.calories} kcal</span>
-                  </div>
-                  {/* Yıldızlar buraya */}
-                  <RatingForm mealId={meal.id} />
-                </li>
-              ))}
-            </ul>
-
-            {/* ALT KISIM: Anket */}
-            <div className="survey-box">
-               <SurveyForm menuId={menu.id} />
+                {/* DİNAMİK ANKET FORMU */}
+                {/* SurveyForm'a bu sefer 'surveyData'yı direkt props olarak verelim ki tekrar fetch atmasın */}
+                <SurveyForm preloadedSurvey={survey} />
+                
             </div>
-            
-          </div>
-        ))}
+            ))
+        )}
       </div>
     </div>
   );

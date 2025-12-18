@@ -1,99 +1,156 @@
 // frontend/src/components/SurveyForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function SurveyForm({ menuId }) {
-  const [formData, setFormData] = useState({
-    q_portion: 0,
-    q_taste: 0,
-    q_cleanliness: 0
-  });
-  const [loading, setLoading] = useState(false);
+// preloadedSurvey: Eğer ana sayfa veriyi gönderirse onu kullan, yoksa null
+function SurveyForm({ preloadedSurvey = null }) {
+  const [survey, setSurvey] = useState(preloadedSurvey);
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(!preloadedSurvey); // Eğer veri geldiyse loading false
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: Number(value) }));
+  useEffect(() => {
+    // Eğer dışarıdan veri gelmediyse (preloadedSurvey yoksa) kendimiz çekelim
+    if (!preloadedSurvey) {
+        const fetchSurvey = async () => {
+          try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('http://localhost:8000/api/surveys/', {
+                headers: token ? { 'Authorization': `Token ${token}` } : {}
+            });
+            if (response.ok) {
+              const data = await response.json();
+              if (data.length > 0) setSurvey(data[0]);
+            }
+          } catch (err) {
+            console.error(err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchSurvey();
+    }
+  }, [preloadedSurvey]);
+
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.q_portion === 0 || formData.q_taste === 0 || formData.q_cleanliness === 0) {
-      setMessage("Lütfen tüm soruları yanıtlayın.");
-      return;
-    }
-    
     const token = localStorage.getItem('authToken');
     if (!token) {
-      setMessage("Giriş yapmalısınız.");
+      alert("Anketi göndermek için giriş yapmalısınız!");
       return;
     }
 
-    setLoading(true);
-    setMessage('');
+    setSubmitting(true);
+    
+    const formattedAnswers = Object.entries(answers).map(([qId, val]) => ({
+        question: qId,
+        value: val.toString()
+    }));
+
+    const payload = {
+        survey: survey.id,
+        answers: formattedAnswers
+    };
 
     try {
-      const response = await fetch(`http://localhost:8000/api/menus/${menuId}/submit_survey/`, {
+      const response = await fetch('http://localhost:8000/api/responses/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Token ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
-        setMessage("Anket gönderildi!");
+        setMessage("Cevabınız kaydedildi, teşekkürler!");
+        setAnswers({});
       } else {
-        setMessage("Hata oluştu.");
+        setMessage("Hata oluştu veya daha önce gönderdiniz.");
       }
     } catch (err) {
       setMessage("Ağ hatası.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const renderOptions = () => (
-    <>
-      <option value="0">Seçin...</option>
-      <option value="1">1 (Kötü)</option>
-      <option value="2">2 (İdare Eder)</option>
-      <option value="3">3 (Orta)</option>
-      <option value="4">4 (İyi)</option>
-      <option value="5">5 (Harika)</option>
-    </>
-  );
+  const renderQuestionInput = (question) => {
+    
+    // A) YILDIZ SORUSU
+    if (question.question_type === 'star') {
+      return (
+        <div className="star-rating-group">
+          {[1, 2, 3, 4, 5].map(star => (
+            <span
+              key={star}
+              className={`star ${answers[question.id] >= star ? 'active' : ''}`}
+              onClick={() => handleAnswerChange(question.id, star)}
+              style={{cursor: 'pointer', fontSize: '1.5rem', marginRight: '5px'}}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // B) METİN SORUSU
+    if (question.question_type === 'text') {
+      return (
+        <textarea
+          rows="3"
+          placeholder="Cevabınız..."
+          value={answers[question.id] || ''}
+          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+        />
+      );
+    }
+
+    // C) SEÇMELİ SORU (YENİ ÖZELLİK)
+    if (question.question_type === 'choice') {
+        // Backend'den gelen "Evet, Hayır" stringini diziye çeviriyoruz
+        const optionsArray = question.options ? question.options.split(',').map(opt => opt.trim()) : [];
+        
+        return (
+            <select 
+                value={answers[question.id] || ''}
+                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                className="survey-select" // CSS'te stil vereceğiz
+            >
+                <option value="">Seçiniz...</option>
+                {optionsArray.map((opt, index) => (
+                    <option key={index} value={opt}>{opt}</option>
+                ))}
+            </select>
+        );
+    }
+
+    return <input type="text" onChange={(e) => handleAnswerChange(question.id, e.target.value)} />;
+  };
+
+  if (loading) return <div>Yükleniyor...</div>;
+  if (!survey) return null;
 
   return (
-    // Inline style SİLİNDİ, className eklendi
-    <form onSubmit={handleSubmit} className="survey-form">
-      <h4>Günün Menüsü Anketi</h4>
-      
-      <div className="form-group">
-        <label>Porsiyon yeterliydi:</label>
-        <select name="q_portion" value={formData.q_portion} onChange={handleChange}>
-          {renderOptions()}
-        </select>
-      </div>
-      
-      <div className="form-group">
-        <label>Yemekler lezzetliydi:</label>
-        <select name="q_taste" value={formData.q_taste} onChange={handleChange}>
-          {renderOptions()}
-        </select>
-      </div>
-      
-      <div className="form-group">
-        <label>Temizlik yeterliydi:</label>
-        <select name="q_cleanliness" value={formData.q_cleanliness} onChange={handleChange}>
-          {renderOptions()}
-        </select>
-      </div>
-      
-      <button type="submit" disabled={loading} className="survey-btn">
-        {loading ? '...' : 'ANKETİ GÖNDER'}
-      </button>
+    <form onSubmit={handleSubmit} className="survey-form" style={{borderTop:'none', padding:0, marginTop:0}}>
+      {/* Soru Listesi */}
+      {survey.questions.map(q => (
+        <div key={q.id} className="form-group" style={{marginBottom: '20px'}}>
+          <label style={{display:'block', marginBottom:'8px', color:'var(--ozal-cyan)', fontWeight:'600'}}>
+            {q.text}
+          </label>
+          {renderQuestionInput(q)}
+        </div>
+      ))}
 
+      <button type="submit" disabled={submitting} className="survey-btn">
+        {submitting ? '...' : 'GÖNDER'}
+      </button>
       {message && <p className="message">{message}</p>}
     </form>
   );
