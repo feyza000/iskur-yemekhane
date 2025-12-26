@@ -23,8 +23,6 @@ const AdminLayout = ({ theme, toggleTheme }) => {
     window.location.reload();
   };
 
-  // ... (GUEST ve STUDENT kartları aynı kalsın, dokunmuyorum) ...
-  // Buraya sadece "return" kısmındaki değişikliği yazıyorum:
 
   if (authStatus === 'guest') {
     return (
@@ -99,6 +97,10 @@ const AdminLayout = ({ theme, toggleTheme }) => {
           
           <NavLink to="/admin/users" className="menu-item">
              <span>👥</span> Kullanıcılar
+          </NavLink>
+
+          <NavLink to="/" className="menu-item" style={{background:'rgba(255,255,255,0.05)', marginBottom:'10px', border:'1px solid rgba(255,255,255,0.1)'}}>
+            <span>🏠</span> Siteye Dön
           </NavLink>
         </nav>
 

@@ -9,18 +9,25 @@ function AdminDashboard() {
   });
 
   useEffect(() => {
-    // 1. Anket Sayısını Çek
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const res = await fetch('http://localhost:8000/api/surveys/', {
-            headers: { 'Authorization': `Token ${token}` }
+        const headers = { 'Authorization': `Token ${token}` };
+
+        // 1. Anketleri Çek
+        const surveyRes = await fetch('http://localhost:8000/api/surveys/', { headers });
+        const surveyData = await surveyRes.json();
+
+        // 2. Cevapları Çek (Admin olduğumuz için hepsi gelir)
+        const responseRes = await fetch('http://localhost:8000/api/responses/', { headers });
+        const responseData = await responseRes.json();
+
+        setStats({
+            // Eğer hata varsa veya dizi değilse 0 kabul et
+            surveyCount: Array.isArray(surveyData) ? surveyData.length : 0,
+            responseCount: Array.isArray(responseData) ? responseData.length : 0
         });
-        if (res.ok) {
-            const data = await res.json();
-            // Kaç tane anket geldiyse sayısını al
-            setStats(prev => ({ ...prev, surveyCount: data.length }));
-        }
+
       } catch (err) {
         console.error("İstatistik hatası:", err);
       }
@@ -56,7 +63,7 @@ function AdminDashboard() {
              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           </div>
           <div className="stat-info">
-            <h3>-</h3> 
+            <h3>{stats.responseCount}</h3> 
             <p>Toplam Katılım</p>
           </div>
         </div>

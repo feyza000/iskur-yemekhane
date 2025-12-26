@@ -1,158 +1,195 @@
 // frontend/src/components/SurveyForm.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { StarInput, CheckboxInput, DateInput, ScaleInput } from './QuestionInputs'; // Bileşenleri çekiyoruz
 
-// preloadedSurvey: Eğer ana sayfa veriyi gönderirse onu kullan, yoksa null
-function SurveyForm({ preloadedSurvey = null }) {
-  const [survey, setSurvey] = useState(preloadedSurvey);
+function SurveyForm({ preloadedSurvey }) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(!preloadedSurvey); // Eğer veri geldiyse loading false
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    // Eğer dışarıdan veri gelmediyse (preloadedSurvey yoksa) kendimiz çekelim
-    if (!preloadedSurvey) {
-        const fetchSurvey = async () => {
-          try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch('http://localhost:8000/api/surveys/', {
-                headers: token ? { 'Authorization': `Token ${token}` } : {}
-            });
-            if (response.ok) {
-              const data = await response.json();
-              if (data.length > 0) setSurvey(data[0]);
-            }
-          } catch (err) {
-            console.error(err);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchSurvey();
-    }
-  }, [preloadedSurvey]);
+  // Soruları Sayfalara Böl
+  // Backend'den sorular karışık gelebilir, önce order'a göre sırala
+  const sortedQuestions = preloadedSurvey.questions.sort((a, b) => a.order - b.order);
+  
+  // Hangi sayfada hangi sorular var? Gruplayalım.
+  const questionsByPage = {};
+  let maxPage = 1;
 
-  const handleAnswerChange = (questionId, value) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  sortedQuestions.forEach(q => {
+    const p = q.page_number || 1; // Eğer null gelirse 1 say
+    if (!questionsByPage[p]) questionsByPage[p] = [];
+    questionsByPage[p].push(q);
+    if (p > maxPage) maxPage = p;
+  });
+
+  // Şu anki sayfanın soruları
+  const currentQuestions = questionsByPage[currentPage] || [];
+
+  // --- HANDLERS ---
+  const handleAnswerChange = (qId, val) => {
+    setAnswers({ ...answers, [qId]: val });
+  };
+
+  const handleNext = () => {
+    // Validasyon: Bu sayfadaki zorunlu sorular doldu mu? (Opsiyonel şimdilik geçiyoruz)
+    window.scrollTo(0, 0); // Sayfanın başına git
+    setCurrentPage(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentPage(prev => prev - 1);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Cevaplarınızı göndermek istiyor musunuz?")) return;
+
+    setLoading(true);
     const token = localStorage.getItem('authToken');
-    if (!token) {
-      alert("Anketi göndermek için giriş yapmalısınız!");
-      return;
-    }
-
-    setSubmitting(true);
-    
-    const formattedAnswers = Object.entries(answers).map(([qId, val]) => ({
-        question: qId,
-        value: val.toString()
-    }));
-
-    const payload = {
-        survey: survey.id,
-        answers: formattedAnswers
-    };
 
     try {
-      const response = await fetch('http://localhost:8000/api/responses/', {
+      const payload = {
+        survey: preloadedSurvey.id,
+        answers: Object.entries(answers).map(([qId, val]) => ({
+            question: parseInt(qId),
+            value: val.toString()
+        }))
+      };
+
+      const res = await fetch('http://localhost:8000/api/responses/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}`
         },
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        setMessage("Cevabınız kaydedildi, teşekkürler!");
-        setAnswers({});
+      if (res.ok) {
+        setSubmitted(true);
       } else {
-        setMessage("Hata oluştu veya daha önce gönderdiniz.");
+        alert("Gönderirken bir hata oluştu.");
       }
-    } catch (err) {
-      setMessage("Ağ hatası.");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { alert("Sunucu hatası."); } 
+    finally { setLoading(false); }
   };
 
-  const renderQuestionInput = (question) => {
-    
-    // A) YILDIZ SORUSU
-    if (question.question_type === 'star') {
-      return (
-        <div className="star-rating-group">
-          {[1, 2, 3, 4, 5].map(star => (
-            <span
-              key={star}
-              className={`star ${answers[question.id] >= star ? 'active' : ''}`}
-              onClick={() => handleAnswerChange(question.id, star)}
-              style={{cursor: 'pointer', fontSize: '1.5rem', marginRight: '5px'}}
-            >
-              ★
-            </span>
-          ))}
+  if (submitted) {
+    return (
+        <div style={{textAlign:'center', padding:'40px'}}>
+            <div style={{fontSize:'4rem'}}>🎉</div>
+            <h3 style={{color:'var(--heading-color)'}}>Teşekkürler!</h3>
+            <p style={{color:'var(--text-muted)'}}>Cevaplarınız başarıyla kaydedildi.</p>
         </div>
-      );
-    }
-
-    // B) METİN SORUSU
-    if (question.question_type === 'text') {
-      return (
-        <textarea
-          rows="3"
-          placeholder="Cevabınız..."
-          value={answers[question.id] || ''}
-          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-        />
-      );
-    }
-
-    // C) SEÇMELİ SORU (YENİ ÖZELLİK)
-    if (question.question_type === 'choice') {
-        // Backend'den gelen "Evet, Hayır" stringini diziye çeviriyoruz
-        const optionsArray = question.options ? question.options.split(',').map(opt => opt.trim()) : [];
-        
-        return (
-            <select 
-                value={answers[question.id] || ''}
-                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                className="survey-select" // CSS'te stil vereceğiz
-            >
-                <option value="">Seçiniz...</option>
-                {optionsArray.map((opt, index) => (
-                    <option key={index} value={opt}>{opt}</option>
-                ))}
-            </select>
-        );
-    }
-
-    return <input type="text" onChange={(e) => handleAnswerChange(question.id, e.target.value)} />;
-  };
-
-  if (loading) return <div>Yükleniyor...</div>;
-  if (!survey) return null;
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="survey-form" style={{borderTop:'none', padding:0, marginTop:0}}>
-      {/* Soru Listesi */}
-      {survey.questions.map(q => (
-        <div key={q.id} className="form-group" style={{marginBottom: '20px'}}>
-          <label style={{display:'block', marginBottom:'8px', color:'var(--ozal-cyan)', fontWeight:'600'}}>
-            {q.text}
-          </label>
-          {renderQuestionInput(q)}
+    <div>
+      {/* İLERLEME ÇUBUĞU (PROGRESS BAR) */}
+      <div style={{marginBottom:'20px', display:'flex', alignItems:'center', gap:'10px'}}>
+        <div style={{flex:1, height:'8px', background:'var(--input-bg)', borderRadius:'4px', overflow:'hidden'}}>
+            <div style={{
+                width: `${(currentPage / maxPage) * 100}%`, 
+                height:'100%', background:'var(--ozal-cyan)', transition:'width 0.3s'
+            }}></div>
         </div>
-      ))}
+        <span style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>
+            Sayfa {currentPage} / {maxPage}
+        </span>
+      </div>
 
-      <button type="submit" disabled={submitting} className="survey-btn">
-        {submitting ? '...' : 'GÖNDER'}
-      </button>
-      {message && <p className="message">{message}</p>}
-    </form>
+      <form onSubmit={handleSubmit}>
+        
+        {/* SORULAR */}
+        <div style={{display:'flex', flexDirection:'column', gap:'25px'}}>
+            {currentQuestions.map(q => (
+                <div key={q.id} style={{marginBottom:'10px'}}>
+                    <label style={{display:'block', marginBottom:'10px', fontWeight:'600', color:'var(--heading-color)', fontSize:'1.05rem'}}>
+                        {q.text}
+                    </label>
+
+                    {/* --- INPUT TİPLERİ --- */}
+                    
+                    {/* 1. KISA METİN */}
+                    {q.question_type === 'text' && (
+                        <input 
+                            type="text" className="modern-input"
+                            value={answers[q.id] || ''}
+                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                            placeholder="Cevabınız..."
+                        />
+                    )}
+
+                    {/* 2. TEK SEÇİM (RADIO) */}
+                    {q.question_type === 'choice' && (
+                        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                            {q.options.split(',').map((opt, i) => (
+                                <label key={i} style={{display:'flex', alignItems:'center', gap:'10px', cursor:'pointer'}}>
+                                    <input 
+                                        type="radio" name={`q-${q.id}`}
+                                        checked={answers[q.id] === opt.trim()}
+                                        onChange={() => handleAnswerChange(q.id, opt.trim())}
+                                        style={{width:'18px', height:'18px', accentColor:'var(--ozal-cyan)'}}
+                                    />
+                                    <span style={{color:'var(--text-main)'}}>{opt.trim()}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 3. YENİ TİPLER: Componentlerden çağırıyoruz */}
+                    {q.question_type === 'star' && (
+                        <StarInput value={answers[q.id]} onChange={(val) => handleAnswerChange(q.id, val)} />
+                    )}
+                    
+                    {q.question_type === 'multiple' && (
+                        <CheckboxInput options={q.options} value={answers[q.id]} onChange={(val) => handleAnswerChange(q.id, val)} />
+                    )}
+
+                    {q.question_type === 'date' && (
+                        <DateInput value={answers[q.id]} onChange={(val) => handleAnswerChange(q.id, val)} />
+                    )}
+
+                    {q.question_type === 'scale' && (
+                        <ScaleInput value={answers[q.id]} onChange={(val) => handleAnswerChange(q.id, val)} />
+                    )}
+
+                </div>
+            ))}
+            
+            {currentQuestions.length === 0 && (
+                <p>Bu sayfada soru bulunamadı.</p>
+            )}
+        </div>
+
+        {/* BUTONLAR */}
+        <div style={{display:'flex', justifyContent:'space-between', marginTop:'30px', borderTop:'1px solid var(--card-border)', paddingTop:'20px'}}>
+            
+            {/* GERİ BUTONU */}
+            {currentPage > 1 ? (
+                <button type="button" onClick={handleBack} className="auth-btn" style={{width:'auto', background:'var(--text-muted)'}}>
+                    ← Geri
+                </button>
+            ) : (
+                <div></div> // Boşluk korumak için
+            )}
+
+            {/* İLERİ VEYA GÖNDER BUTONU */}
+            {currentPage < maxPage ? (
+                <button type="button" onClick={handleNext} className="auth-btn" style={{width:'auto', background:'var(--ozal-cyan)'}}>
+                    İleri →
+                </button>
+            ) : (
+                <button type="submit" disabled={loading} className="auth-btn" style={{width:'auto', padding:'12px 30px'}}>
+                    {loading ? 'Gönderiliyor...' : 'ANKETİ TAMAMLA ✅'}
+                </button>
+            )}
+        </div>
+
+      </form>
+    </div>
   );
 }
 

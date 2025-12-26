@@ -1,6 +1,7 @@
 // frontend/src/pages/HomePage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/components.css'; 
 import SurveyForm from '../components/SurveyForm';
 
@@ -8,6 +9,8 @@ function HomePage() {
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const [expandedSurveyId, setExpandedSurveyId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -19,15 +22,16 @@ function HomePage() {
     }
 
     setIsAuthenticated(true);
+    fetchSurveys(token);
+    }, []);
 
-    const fetchSurveys = async () => {
+    const fetchSurveys = async (token) => {
       try {
         const response = await fetch('http://localhost:8000/api/surveys/', {
             headers: { 'Authorization': `Token ${token}` }
         });
         if (response.ok) {
-          const data = await response.json();
-          setSurveys(data);
+          if (response.ok) setSurveys(await response.json());
         }
       } catch (error) {
         console.error("Hata:", error);
@@ -35,11 +39,16 @@ function HomePage() {
         setLoading(false);
       }
     };
-    fetchSurveys();
-  }, []);
+  
+    const toggleSurvey = (id) => {
+      setExpandedSurveyId(expandedSurveyId === id ? null : id);
+  };
 
-  if (loading) return <div style={{textAlign:'center', marginTop:'50px'}}>Yükleniyor...</div>;
-
+  if (loading) return (
+    <div style={{display:'flex', justifyContent:'center', marginTop:'100px'}}>
+        <div className="loader"></div>
+    </div>
+  );
   // GİRİŞ YAPILMAMIŞSA BU KART GÖRÜNMELİ
   if (!isAuthenticated) {
     return (
@@ -66,23 +75,74 @@ function HomePage() {
 
   // GİRİŞ YAPILMIŞSA ANKETLER
   return (
-    <div style={{width: '100%', display: 'flex', justifyContent: 'center'}}>
-      <div className="menu-list">
+    <div style={{width: '100%', maxWidth: '900px', margin: '0 auto', paddingBottom: '80px'}}>
+      
+      <div className="page-header" style={{marginBottom: '40px', textAlign:'center'}}>
+          <h1 style={{fontSize:'2.5rem', marginBottom:'10px'}}>Aktif Anketler</h1>
+          <p style={{opacity:0.7}}>Görüşlerinle kampüsü şekillendir.</p>
+      </div>
+
+      <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
         {surveys.length === 0 ? (
             <div className="menu-card" style={{textAlign: 'center', padding: '60px'}}>
                 <h3 style={{color: 'var(--text-muted)'}}>📭 Şu an aktif bir anket bulunmuyor.</h3>
-                <p style={{color:'var(--text-muted)'}}>Daha sonra tekrar kontrol ediniz.</p>
             </div>
         ) : (
-            surveys.map(survey => (
-            <div key={survey.id} className="menu-card">
-                <div className="menu-header">
-                    <h2>{survey.title}</h2>
-                    <p>{survey.description}</p>
-                </div>
-                <SurveyForm preloadedSurvey={survey} />
-            </div>
-            ))
+            surveys.map(survey => {
+                const isOpen = expandedSurveyId === survey.id;
+                
+                return (
+                    <motion.div 
+                        key={survey.id} 
+                        className={`accordion-item ${isOpen ? 'open' : ''}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {/* BAŞLIK (HEADER) */}
+                        <div 
+                            className="accordion-header"
+                            onClick={() => toggleSurvey(survey.id)}
+                        >
+                            <div style={{flex: 1}}>
+                                <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px'}}>
+                                    <span className="status-dot"></span> {/* Yeşil nokta */}
+                                    <h3 style={{margin: 0, fontSize: '1.25rem', fontWeight:'700'}}>{survey.title}</h3>
+                                </div>
+                                <p style={{margin: 0, fontSize: '0.95rem', color:'var(--text-muted)', lineHeight:'1.5'}}>
+                                    {survey.description}
+                                </p>
+                            </div>
+                            
+                            {/* DÖNEN İKON */}
+                            <motion.div 
+                                className="accordion-icon-wrapper"
+                                animate={{ rotate: isOpen ? 45 : 0 }} // Artı (+) çarpı (x) olur
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </motion.div>
+                        </div>
+
+                        {/* İÇERİK (BODY) - ANIMASYONLU */}
+                        <AnimatePresence>
+                            {isOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                    style={{ overflow: 'hidden' }} // Animasyon sırasında taşmayı önler
+                                >
+                                    <div className="accordion-body">
+                                        <SurveyForm preloadedSurvey={survey} />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                );
+            })
         )}
       </div>
     </div>

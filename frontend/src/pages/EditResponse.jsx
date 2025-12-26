@@ -1,15 +1,17 @@
 // frontend/src/pages/EditResponse.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+// Yeni bileşenlerimizi buraya da import ediyoruz!
+import { StarInput, CheckboxInput, DateInput, ScaleInput } from '../components/QuestionInputs';
 
 function EditResponse() {
-  const { id } = useParams(); // Response ID
+  const { id } = useParams();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [surveyTitle, setSurveyTitle] = useState('');
   const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({}); // { question_id: "cevap" } formatında
+  const [answers, setAnswers] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -19,28 +21,24 @@ function EditResponse() {
     try {
       const token = localStorage.getItem('authToken');
       
-      // 1. Önce Verilen Cevapları Çek (Response)
       const respRes = await fetch(`http://localhost:8000/api/responses/${id}/`, {
         headers: { 'Authorization': `Token ${token}` }
       });
       if (!respRes.ok) throw new Error("Cevap bulunamadı");
       const respData = await respRes.json();
 
-      // Mevcut cevapları state'e işle
       const initialAnswers = {};
       respData.answers.forEach(a => {
         initialAnswers[a.question] = a.value;
       });
       setAnswers(initialAnswers);
 
-      // 2. Şimdi Bağlı Olduğu Anketi Çek (Sorular için)
       const surveyRes = await fetch(`http://localhost:8000/api/surveys/${respData.survey}/`, {
         headers: { 'Authorization': `Token ${token}` }
       });
       const surveyData = await surveyRes.json();
       
       setSurveyTitle(surveyData.title);
-      // Soruları sıraya diz
       setQuestions(surveyData.questions.sort((a, b) => a.order - b.order));
       
     } catch (err) {
@@ -51,16 +49,14 @@ function EditResponse() {
     }
   };
 
-  // Input Değişikliği
   const handleChange = (questionId, value) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  // Güncelleme İşlemi (PUT)
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validasyon: Boş cevap var mı?
+    // Basit validasyon
     const missing = questions.find(q => !answers[q.id]);
     if (missing) {
         alert(`Lütfen "${missing.text}" sorusunu cevaplayınız.`);
@@ -69,8 +65,6 @@ function EditResponse() {
 
     try {
         const token = localStorage.getItem('authToken');
-        
-        // Backend'in beklediği formata çevir
         const payload = {
             answers: Object.entries(answers).map(([qId, val]) => ({
                 question: parseInt(qId),
@@ -79,7 +73,7 @@ function EditResponse() {
         };
 
         const res = await fetch(`http://localhost:8000/api/responses/${id}/`, {
-            method: 'PATCH', 
+            method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Token ${token}`
@@ -107,45 +101,53 @@ function EditResponse() {
 
         <form onSubmit={handleSubmit} className="survey-form">
             {questions.map(q => (
-                <div key={q.id} className="form-group">
-                    <label>{q.text}</label>
+                <div key={q.id} className="form-group" style={{marginBottom:'25px'}}>
+                    <label style={{display:'block', marginBottom:'10px', fontWeight:'bold', color:'var(--heading-color)'}}>
+                        {q.text}
+                    </label>
                     
-                    {/* --- TEXT --- */}
+                    {/* --- KISA METİN --- */}
                     {q.question_type === 'text' && (
-                        <textarea 
-                            className="modern-input" rows="3"
+                        <input 
+                            type="text"
+                            className="modern-input"
                             value={answers[q.id] || ''}
                             onChange={(e) => handleChange(q.id, e.target.value)}
                         />
                     )}
 
-                    {/* --- CHOICE --- */}
+                    {/* --- TEK SEÇİM (RADIO) --- */}
                     {q.question_type === 'choice' && (
-                        <select 
-                            className="modern-input"
-                            value={answers[q.id] || ''}
-                            onChange={(e) => handleChange(q.id, e.target.value)}
-                        >
-                            <option value="">Seçiniz...</option>
+                        <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                             {q.options.split(',').map((opt, i) => (
-                                <option key={i} value={opt.trim()}>{opt.trim()}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* --- STAR --- */}
-                    {q.question_type === 'star' && (
-                        <div className="star-rating-group">
-                            {[1, 2, 3, 4, 5].map(star => (
-                                <span 
-                                    key={star} 
-                                    className={`star ${parseInt(answers[q.id]) >= star ? 'active' : ''}`}
-                                    onClick={() => handleChange(q.id, star)}
-                                >
-                                    ★
-                                </span>
+                                <label key={i} style={{display:'flex', alignItems:'center', gap:'10px', cursor:'pointer'}}>
+                                    <input 
+                                        type="radio" name={`q-${q.id}`}
+                                        checked={answers[q.id] === opt.trim()}
+                                        onChange={() => handleChange(q.id, opt.trim())}
+                                        style={{width:'18px', height:'18px', accentColor:'var(--ozal-cyan)'}}
+                                    />
+                                    <span style={{color:'var(--text-main)'}}>{opt.trim()}</span>
+                                </label>
                             ))}
                         </div>
+                    )}
+
+                    {/* --- YENİ TİPLER --- */}
+                    {q.question_type === 'star' && (
+                        <StarInput value={answers[q.id]} onChange={(val) => handleChange(q.id, val)} />
+                    )}
+
+                    {q.question_type === 'multiple' && (
+                        <CheckboxInput options={q.options} value={answers[q.id]} onChange={(val) => handleChange(q.id, val)} />
+                    )}
+
+                    {q.question_type === 'date' && (
+                        <DateInput value={answers[q.id]} onChange={(val) => handleChange(q.id, val)} />
+                    )}
+
+                    {q.question_type === 'scale' && (
+                        <ScaleInput value={answers[q.id]} onChange={(val) => handleChange(q.id, val)} />
                     )}
                 </div>
             ))}

@@ -13,27 +13,24 @@ class Survey(models.Model):
 
 # 2. SORU (QUESTION): Ankete bağlı dinamik sorular
 class Question(models.Model):
-    # Soru Tipleri: TODO: burayı artırabiliriz (Çoktan seçmeli, Metin vb.)
-    QUESTION_TYPES = (
-        ('text', 'Metin Cevap'),
-        ('star', 'Yıldız Puanlama (1-5)'),
-        ('choice', 'Tekli Seçim (Dropdown)'),
-    )
+    QUESTION_TYPES = [
+        ('text', 'Kısa Metin'),
+        ('star', 'Yıldız Puanlama'),
+        ('choice', 'Tek Seçim (Radio)'),
+        # YENİ TİPLER EKLENDİ 👇
+        ('multiple', 'Çoklu Seçim (Checkbox)'), 
+        ('date', 'Tarih Seçimi'),
+        ('scale', '1-10 Ölçek'), 
+    ]
 
     survey = models.ForeignKey(Survey, related_name='questions', on_delete=models.CASCADE)
-    text = models.CharField(max_length=500, verbose_name="Soru Metni")
+    text = models.CharField(max_length=255)
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='text')
-    order = models.PositiveIntegerField(default=0, verbose_name="Sıralama") # Soruların sırasını admin belirlesin
-
-    options = models.CharField(
-        max_length=500, 
-        blank=True, 
-        null=True, 
-        help_text="Eğer 'Tekli Seçim' yaptıysanız seçenekleri virgülle ayırarak yazın. Örn: Evet, Hayır, Kısmen"
-    )
-
-    class Meta:
-        ordering = ['order'] # Veritabanından çekerken hep sırayla gelsin
+    options = models.TextField(blank=True, null=True, help_text="Seçenekleri virgülle ayırın")
+    order = models.IntegerField(default=1)
+    
+    # YENİ: Sayfalama için Sayfa Numarası
+    page_number = models.IntegerField(default=1, verbose_name="Sayfa Numarası") 
 
     def __str__(self):
         return f"{self.text} ({self.get_question_type_display()})"

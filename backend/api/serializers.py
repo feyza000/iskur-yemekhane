@@ -36,9 +36,13 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = ['id', 'text', 'question_type', 'order', 'options']
 
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ['id', 'survey', 'text', 'question_type', 'options', 'order', 'page_number']
+
 class SurveySerializer(serializers.ModelSerializer):
-    """Anketi ve içindeki soruları listeler (Google Forms gibi)"""
-    questions = QuestionSerializer(many=True, read_only=True) # Soruları içine gömdük
+    questions = QuestionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Survey
@@ -91,13 +95,6 @@ class ResponseSerializer(serializers.ModelSerializer):
             Answer.objects.create(response=instance, **answer_data)
             
         return instance
-    
-class QuestionSerializer(serializers.ModelSerializer):
-    """Anketin içindeki soruları listeler"""
-    class Meta:
-        model = Question
-        # 'survey' alanını ekledik ki soru oluştururken anketi seçebilelim
-        fields = ['id', 'survey', 'text', 'question_type', 'order', 'options']
 
 # --- ADMIN KULLANICI YÖNETİMİ İÇİN ---
 class UserAdminSerializer(serializers.ModelSerializer):

@@ -40,3 +40,66 @@ select {
 .star { font-size: 2.5rem !important; color: var(--star-inactive); cursor: pointer; }
 .star.active { color: var(--ozal-orange); filter: drop-shadow(0 0 5px rgba(239, 127, 26, 0.4)); }
 .message { color: var(--ozal-cyan); font-weight: 700; text-align: center; margin-top: 15px; }
+
+.accordion-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.accordion-header {
+  padding: 20px 25px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+  color: var(--heading-color);
+  transition: background 0.2s;
+  border-left: 5px solid transparent;
+}
+
+.accordion-header:hover {
+  background: var(--nav-hover-bg);
+}
+
+.accordion-header.active {
+  background: var(--input-bg);
+  border-left: 5px solid var(--ozal-orange);
+  /* Aktifse turuncu çizgi */
+}
+
+.accordion-header h3 {
+  color: var(--heading-color);
+}
+
+.accordion-icon {
+  font-size: 2rem;
+  color: var(--ozal-cyan);
+  line-height: 0;
+  margin-left: 20px;
+  font-weight: 300;
+}
+
+.accordion-body {
+  padding: 30px;
+  border-top: 1px solid var(--card-border);
+  background: var(--bg-body);
+  /* İç kısım hafif farklı renk olsun */
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

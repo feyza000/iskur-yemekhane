@@ -58,7 +58,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
         queryset = Survey.objects.filter(is_active=True)
         
         # Ve çözdüklerini görmesin
-        if self.request.user.is_authenticated:
+        if self.action == 'list' and self.request.user.is_authenticated:
             queryset = queryset.exclude(responses__user=self.request.user)
             
         return queryset
