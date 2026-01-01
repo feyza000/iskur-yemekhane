@@ -64,7 +64,7 @@ function SurveyDetail() {
     setQuestions(updated);
   };
 
-  // --- YENİ: HEPSİNİ KAYDET FONKSİYONU ---
+  // --- HEPSİNİ KAYDET FONKSİYONU ---
   const handleSaveAll = async () => {
     if(!window.confirm("Tüm değişiklikleri kaydetmek istiyor musunuz?")) return;
     setSaving(true);
@@ -94,7 +94,8 @@ function SurveyDetail() {
                     text: q.text,
                     question_type: q.question_type,
                     options: q.options,
-                    page_number: q.page_number
+                    page_number: q.page_number,
+                    required: q.required
                 })
             });
         });
@@ -245,6 +246,17 @@ function SurveyDetail() {
                                     onChange={(e) => handleQuestionChange(index, 'page_number', parseInt(e.target.value))}
                                 />
                             </div>
+                        </div>
+
+                        {/* YENİ: ZORUNLU CHECKBOX */}
+                        <div style={{width:'80px', textAlign:'center'}}>
+                            <label style={{display:'block', marginBottom:'5px', fontSize:'0.8rem', color:'var(--text-muted)', cursor:'pointer'}}>Zorunlu</label>
+                            <input 
+                                type="checkbox" 
+                                checked={q.required}
+                                onChange={(e) => handleQuestionChange(index, 'required', e.target.checked)}
+                                style={{width:'20px', height:'20px', accentColor:'var(--ozal-cyan)', cursor:'pointer'}}
+                            />
                         </div>
 
                         {/* SEÇENEKLER */}

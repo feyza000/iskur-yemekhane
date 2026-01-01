@@ -26,6 +26,28 @@ function SurveyForm({ preloadedSurvey }) {
   // Şu anki sayfanın soruları
   const currentQuestions = questionsByPage[currentPage] || [];
 
+  // --- VALIDASYON FONKSİYONU ---
+  const validateCurrentPage = () => {
+    // Sadece şu anki sayfadaki soruları kontrol et
+    const missingQuestions = currentQuestions.filter(q => {
+        // Eğer soru zorunluysa (required=true) VE cevap yoksa veya boşsa
+        if (q.required) {
+            const val = answers[q.id];
+            // Checkbox veya Text ise boş string kontrolü, diğerleri null kontrolü
+            if (!val || (typeof val === 'string' && val.trim() === '')) {
+                return true; // Bu soru eksik!
+            }
+        }
+        return false;
+    });
+
+    if (missingQuestions.length > 0) {
+        alert("Lütfen zorunlu alanları doldurunuz:\n\n" + missingQuestions.map(q => "- " + q.text).join("\n"));
+        return false;
+    }
+    return true;
+  };
+
   // --- HANDLERS ---
   const handleAnswerChange = (qId, val) => {
     setAnswers({ ...answers, [qId]: val });
@@ -33,6 +55,7 @@ function SurveyForm({ preloadedSurvey }) {
 
   const handleNext = (e) => {
     e.preventDefault();
+    if (!validateCurrentPage()) return;
     window.scrollTo(0, 0); 
     setCurrentPage(prev => prev + 1);
   };
@@ -44,6 +67,7 @@ function SurveyForm({ preloadedSurvey }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateCurrentPage()) return;
     if (!window.confirm("Cevaplarınızı göndermek istiyor musunuz?")) return;
 
     setLoading(true);
@@ -101,14 +125,21 @@ function SurveyForm({ preloadedSurvey }) {
         </span>
       </div>
 
+      {/* BİLGİLENDİRME METNİ */}
+      <div style={{textAlign:'right', fontSize:'0.85rem', color:'red', marginBottom:'15px', fontStyle:'italic'}}>
+        * : Gerekli cevap
+      </div>
+
       <form onSubmit={handleSubmit}>
         
         {/* SORULAR */}
         <div style={{display:'flex', flexDirection:'column', gap:'25px'}}>
             {currentQuestions.map(q => (
                 <div key={q.id} style={{marginBottom:'10px'}}>
+                    {/* SORU BAŞLIĞI ve YILDIZ */}
                     <label style={{display:'block', marginBottom:'10px', fontWeight:'600', color:'var(--heading-color)', fontSize:'1.05rem'}}>
-                        {q.text}
+                        {q.text} 
+                        {q.required && <span style={{color:'red', marginLeft:'5px'}}>*</span>}
                     </label>
 
                     {/* --- INPUT TİPLERİ --- */}

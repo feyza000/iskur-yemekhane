@@ -198,6 +198,17 @@ function NewSurvey() {
                             </div>
                         </div>
 
+                        {/* ZORUNLU CHECKBOX */}
+                        <div style={{width:'80px', textAlign:'center'}}>
+                            <label style={{display:'block', marginBottom:'5px', fontSize:'0.8rem', color:'var(--text-muted)', cursor:'pointer'}}>Zorunlu</label>
+                            <input 
+                                type="checkbox" 
+                                checked={q.required}
+                                onChange={(e) => handleQuestionChange(index, 'required', e.target.checked)}
+                                style={{width:'20px', height:'20px', accentColor:'var(--ozal-cyan)', cursor:'pointer'}}
+                            />
+                        </div>
+
                         {/* Seçenekler (Sadece Choice veya Multiple ise görünür) */}
                         {(q.question_type === 'choice' || q.question_type === 'multiple') && (
                             <div style={{background:'rgba(239, 127, 26, 0.1)', padding:'15px', borderRadius:'8px'}}>

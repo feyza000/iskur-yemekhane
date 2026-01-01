@@ -28,9 +28,8 @@ class Question(models.Model):
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='text')
     options = models.TextField(blank=True, null=True, help_text="Seçenekleri virgülle ayırın")
     order = models.IntegerField(default=1)
-    
-    # YENİ: Sayfalama için Sayfa Numarası
-    page_number = models.IntegerField(default=1, verbose_name="Sayfa Numarası") 
+    page_number = models.IntegerField(default=1, verbose_name="Sayfa Numarası")
+    required = models.BooleanField(default=True, verbose_name="Zorunlu Soru")
 
     def __str__(self):
         return f"{self.text} ({self.get_question_type_display()})"

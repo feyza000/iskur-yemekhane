@@ -29,17 +29,10 @@ class LoginSerializer(serializers.Serializer):
         raise serializers.ValidationError("Giriş bilgileri hatalı.")
 
 # --- ANKET SİSTEMİ SERIALIZERLARI ---
-
-class QuestionSerializer(serializers.ModelSerializer):
-    """Anketin içindeki soruları listeler"""
-    class Meta:
-        model = Question
-        fields = ['id', 'text', 'question_type', 'order', 'options']
-
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
-        fields = ['id', 'survey', 'text', 'question_type', 'options', 'order', 'page_number']
+        fields = ['id', 'survey', 'text', 'question_type', 'options', 'order', 'page_number', 'required']
 
 class SurveySerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
