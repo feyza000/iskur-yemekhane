@@ -31,13 +31,14 @@ function SurveyForm({ preloadedSurvey }) {
     setAnswers({ ...answers, [qId]: val });
   };
 
-  const handleNext = () => {
-    // Validasyon: Bu sayfadaki zorunlu sorular doldu mu? (Opsiyonel şimdilik geçiyoruz)
-    window.scrollTo(0, 0); // Sayfanın başına git
+  const handleNext = (e) => {
+    e.preventDefault();
+    window.scrollTo(0, 0); 
     setCurrentPage(prev => prev + 1);
   };
 
-  const handleBack = () => {
+  const handleBack = (e) => {
+    e.preventDefault();
     setCurrentPage(prev => prev - 1);
   };
 
@@ -173,7 +174,7 @@ function SurveyForm({ preloadedSurvey }) {
                     ← Geri
                 </button>
             ) : (
-                <div></div> // Boşluk korumak için
+                <div></div>
             )}
 
             {/* İLERİ VEYA GÖNDER BUTONU */}
