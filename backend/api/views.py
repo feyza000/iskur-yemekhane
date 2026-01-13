@@ -1,5 +1,4 @@
-# backend/api/views.py
-from rest_framework import viewsets, generics, permissions, status
+from rest_framework import viewsets, generics, permissions, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response as APIResponse
 from rest_framework.authtoken.models import Token
@@ -46,6 +45,10 @@ class SurveyViewSet(viewsets.ModelViewSet):
     """
     serializer_class = SurveySerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    # Search
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'description'] # Başlık veya açıklamada arama yapar
 
     def get_queryset(self):
         # 1. Eğer kullanıcı PERSONEL (Admin/Staff) ise:

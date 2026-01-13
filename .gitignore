@@ -1,1 +1,5 @@
 *.code-workspace
+.gitmodules
+.prompts
+backend/.agent/rules/architect.md
+.gitmodules
