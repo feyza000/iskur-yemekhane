@@ -9,23 +9,34 @@ import { SurveyService } from '../../services/survey.service';
  * Accessible only by Staff/Admin users.
  */
 
+import { toast } from 'react-toastify';
+
 function SurveyList() {
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(''); // Arama State'i
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null); // Silme onayı için ID
 
-  // Verileri Çek
+  // Verileri Çek (Debounce ile)
   useEffect(() => {
-    fetchSurveys();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      fetchSurveys();
+    }, 500); // 500ms bekle
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const fetchSurveys = async () => {
     try {
-      // SurveyService.getAll() arama parametresi alabiliyor ama burada hepsini çekiyoruz
-      const data = await SurveyService.getAll();
+      // Sadece ilk yüklemede tam sayfa loading gösterilebilir, ama arama yaparken
+      // listeyi şeffaflaştırmak daha iyidir.
+
+      const data = await SurveyService.getAll(searchTerm);
       setSurveys(data);
     } catch (err) {
       console.error(err);
+      toast.error("Anketler yüklenirken hata oluştu.");
       setError("Anketler yüklenirken hata oluştu.");
     } finally {
       setLoading(false);
@@ -34,18 +45,18 @@ function SurveyList() {
 
   // Anket Silme Fonksiyonu
   const handleDelete = async (id) => {
-    if (!window.confirm("Bu anketi tamamen silmek istiyor musunuz?")) return;
 
     try {
       await SurveyService.delete(id);
-      setSurveys(surveys.filter(s => s.id !== id));
+      setSurveys(prev => prev.filter(s => s.id !== id));
+      toast.success("Anket başarıyla silindi.");
     } catch (err) {
-      alert("Silinemedi.");
+      console.error(err);
+      toast.error("Silinemedi.");
     }
   };
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Yükleniyor...</div>;
-  if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'red' }}>{error}</div>;
+  if (loading && surveys.length === 0) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Yükleniyor...</div>;
 
   return (
     <div>
@@ -60,12 +71,24 @@ function SurveyList() {
         </Link>
       </div>
 
+      {/* --- ARAMA KUTUSU --- */}
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          className="modern-input"
+          placeholder="Anket ara (Başlık veya açıklama)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ maxWidth: '400px', padding: '12px' }}
+        />
+      </div>
+
       {/* TABLO KARTI */}
       <div style={{ background: 'var(--card-bg)', borderRadius: '16px', boxShadow: 'var(--card-shadow)', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
 
         {surveys.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Henüz hiç anket eklenmemiş.
+            {searchTerm ? 'Arama kriterlerine uygun anket bulunamadı.' : 'Henüz hiç anket eklenmemiş.'}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -108,13 +131,25 @@ function SurveyList() {
                     </Link>
 
                     <button
-                      onClick={() => handleDelete(survey.id)}
+                      onClick={() => {
+                        if (deleteConfirmId === survey.id) {
+                          handleDelete(survey.id);
+                          setDeleteConfirmId(null);
+                        } else {
+                          setDeleteConfirmId(survey.id);
+                          // 3 saniye sonra onayı iptal et
+                          setTimeout(() => setDeleteConfirmId(null), 3000);
+                        }
+                      }}
                       style={{
-                        background: 'transparent', border: '1px solid #EF4444', color: '#EF4444',
-                        padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+                        background: deleteConfirmId === survey.id ? '#EF4444' : 'transparent',
+                        border: '1px solid #EF4444',
+                        color: deleteConfirmId === survey.id ? 'white' : '#EF4444',
+                        padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', marginLeft: '10px',
+                        transition: 'all 0.2s'
                       }}
                     >
-                      Sil
+                      {deleteConfirmId === survey.id ? 'Emin misin?' : 'Sil'}
                     </button>
                   </td>
                 </tr>

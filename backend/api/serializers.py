@@ -63,13 +63,43 @@ class ResponseSerializer(serializers.ModelSerializer):
         answers_data = validated_data.pop('answers')
         
         # 1. First, create the Response package
-        # We will get user info from view via perform_create or context
         user = self.context['request'].user
         response = Response.objects.create(user=user, **validated_data)
 
-        # 2. Then create individual answers (Answer) inside and link to package
-        for answer_data in answers_data:
-            Answer.objects.create(response=response, **answer_data)
+        # 2. Prepare Answer objects for BULK INSERT
+        try:
+            answers_to_create = []
+
+            for answer_data in answers_data:
+                val_str = answer_data.get('value', '')
+                
+                # --- NUMERIC OPTIMIZATION ---
+                num_val = None
+                try:
+                    cleaned_val = str(val_str).replace(',', '.')
+                    if cleaned_val.strip():
+                        num_val = float(cleaned_val)
+                except (ValueError, TypeError):
+                    pass
+                
+                answers_to_create.append(
+                    Answer(
+                        response=response,
+                        question=answer_data['question'],
+                        value=val_str,
+                        numeric_value=num_val
+                    )
+                )
+
+            # 3. Perform BULK INSERT (One SQL Query instead of N)
+            if answers_to_create:
+                Answer.objects.bulk_create(answers_to_create)
+                
+        except Exception as e:
+            import traceback
+            with open("crash.log", "w") as f:
+                f.write(traceback.format_exc())
+            raise e
 
         return response
     
@@ -95,11 +125,30 @@ class ResponseSerializer(serializers.ModelSerializer):
                 # UPDATE existing
                 ans = existing_answers[q_id]
                 ans.value = new_value
+                
+                # Update Numeric
+                try:
+                    ans.numeric_value = float(str(new_value).replace(',', '.'))
+                except (ValueError, TypeError):
+                    ans.numeric_value = None
+                    
                 ans.save()
                 processed_question_ids.append(q_id)
             else:
                 # CREATE new
-                Answer.objects.create(response=instance, **answer_data)
+                # Need to handle numeric here too
+                num_val = None
+                try:
+                    num_val = float(str(new_value).replace(',', '.'))
+                except (ValueError, TypeError):
+                    pass
+                    
+                Answer.objects.create(
+                    response=instance, 
+                    question=answer_data.get('question'), 
+                    value=new_value,
+                    numeric_value=num_val
+                )
                 
         # 4. OPTIONAL: Delete answers that are NOT in the new payload?
         # If the form logic sends ALL answers every time, then yes, delete missing ones.

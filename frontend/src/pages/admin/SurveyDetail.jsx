@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { SurveyService } from '../../services/survey.service';
 
+import { toast } from 'react-toastify';
+
 function SurveyDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -13,6 +15,7 @@ function SurveyDetail() {
     const [saving, setSaving] = useState(false); // Lock button while saving
     const [activeTab, setActiveTab] = useState('questions');
     const [stats, setStats] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null); // Question Delete Confirm
 
     // Fetch Data
     useEffect(() => {
@@ -30,6 +33,7 @@ function SurveyDetail() {
             })).sort((a, b) => a.order - b.order));
         } catch (err) {
             console.error(err);
+            toast.error("Anket detayları yüklenemedi.");
         } finally {
             setLoading(false);
         }
@@ -83,22 +87,22 @@ function SurveyDetail() {
             });
 
             await Promise.all(questionPromises);
-            alert("Tüm değişiklikler başarıyla kaydedildi! ✅");
+            toast.success("Tüm değişiklikler başarıyla kaydedildi! ✅");
 
         } catch (err) {
             console.error(err);
-            alert("Kaydederken bir hata oluştu.");
+            toast.error("Kaydederken bir hata oluştu.");
         } finally {
             setSaving(false);
         }
     };
 
     const deleteQuestion = async (qId) => {
-        if (!window.confirm("Soruyu silmek istediğine emin misin?")) return;
         try {
             await SurveyService.deleteQuestion(qId);
             setQuestions(questions.filter(q => q.id !== qId));
-        } catch (err) { alert("Silinemedi."); }
+            toast.success("Soru silindi.");
+        } catch (err) { toast.error("Silinemedi."); }
     };
 
     const addNewQuestion = async () => {
@@ -111,9 +115,9 @@ function SurveyDetail() {
                 page_number: 1
             });
             setQuestions([...questions, newQ]);
-        } catch (err) { alert("Eklenemedi."); }
+            toast.success("Yeni soru eklendi.");
+        } catch (err) { toast.error("Eklenemedi."); }
     };
-
 
     if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Yükleniyor...</div>;
     if (!survey) return <div>Anket bulunamadı.</div>;
@@ -135,6 +139,29 @@ function SurveyDetail() {
                         style={{ fontSize: '1rem', border: 'none', background: 'transparent', color: 'var(--text-muted)', width: '100%', resize: 'none', fontFamily: 'inherit' }}
                         rows={2}
                     />
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+                            <div style={{
+                                width: '40px', height: '22px', background: survey.is_active ? '#10B981' : '#E5E7EB',
+                                borderRadius: '20px', position: 'relative', transition: 'background 0.2s', border: '1px solid var(--card-border)'
+                            }}>
+                                <div style={{
+                                    width: '18px', height: '18px', background: 'white', borderRadius: '50%',
+                                    position: 'absolute', top: '1px', left: survey.is_active ? '19px' : '1px',
+                                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                }} />
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={survey.is_active}
+                                onChange={(e) => setSurvey({ ...survey, is_active: e.target.checked })}
+                                style={{ display: 'none' }}
+                            />
+                            <span style={{ fontWeight: 'bold', color: survey.is_active ? '#10B981' : 'var(--text-muted)' }}>
+                                {survey.is_active ? 'Anket Yayında (Aktif)' : 'Anket Kapalı (Pasif)'}
+                            </span>
+                        </label>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                     {/* SINGLE LARGE SAVE BUTTON */}
@@ -222,7 +249,7 @@ function SurveyDetail() {
                                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>Zorunlu</label>
                                     <input
                                         type="checkbox"
-                                        checked={q.required}
+                                        checked={q.required || false}
                                         onChange={(e) => handleQuestionChange(index, 'required', e.target.checked)}
                                         style={{ width: '20px', height: '20px', accentColor: 'var(--ozal-cyan)', cursor: 'pointer' }}
                                     />
@@ -242,7 +269,27 @@ function SurveyDetail() {
 
                             {/* BUTTONS: Only Delete Button Remains */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <button onClick={() => deleteQuestion(q.id)} title="Soruyu Sil" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid #EF4444', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
+                                <button
+                                    onClick={() => {
+                                        if (deleteConfirmId === q.id) {
+                                            deleteQuestion(q.id);
+                                            setDeleteConfirmId(null);
+                                        } else {
+                                            setDeleteConfirmId(q.id);
+                                            setTimeout(() => setDeleteConfirmId(null), 3000);
+                                        }
+                                    }}
+                                    title="Soruyu Sil"
+                                    style={{
+                                        background: deleteConfirmId === q.id ? '#EF4444' : 'rgba(239, 68, 68, 0.1)',
+                                        color: deleteConfirmId === q.id ? 'white' : '#EF4444',
+                                        border: '1px solid #EF4444',
+                                        padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {deleteConfirmId === q.id ? '🗑️?' : '🗑️'}
+                                </button>
                             </div>
 
                         </div>

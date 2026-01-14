@@ -11,6 +11,7 @@ export const AuthService = {
             if (data.is_superuser) localStorage.setItem('isSuperUser', 'true');
             if (data.is_staff) localStorage.setItem('isStaff', 'true');
             localStorage.setItem('userId', data.user_id);
+            localStorage.setItem('username', username); // Save username for UI
         }
         return data;
     },

@@ -3,11 +3,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-// import { API_BASE_URL } from '../services/api';
+import { toast } from 'react-toastify';
 import { AuthService } from '../services/auth.service';
 
 function RegisterPage() {
-  // State yapısını değiştirdik: 'email' yerine 'studentNumber' var.
   const [formData, setFormData] = useState({
     username: '',
     studentNumber: '',
@@ -75,7 +74,7 @@ function RegisterPage() {
       await AuthService.register(submissionData);
 
       // Başarılı ise login sayfasına yönlendir
-      alert("Kayıt Başarılı! Şimdi giriş yapabilirsiniz.");
+      toast.success("Kayıt Başarılı! Şimdi giriş yapabilirsiniz.");
       navigate('/login');
 
     } catch (err) {
@@ -83,7 +82,9 @@ function RegisterPage() {
       const errorData = err; // api.request throw ediyor
       // Basitçe ilk hatayı gösterelim (geliştirilebilir)
       const firstError = Object.values(errorData).flat()[0];
-      setErrorMessage(typeof firstError === 'string' ? firstError : "Kayıt başarısız.");
+      const msg = typeof firstError === 'string' ? firstError : "Kayıt başarısız.";
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +170,7 @@ function RegisterPage() {
           KAYIT OL ➔
         </button>
 
-        {message && <p className="error-msg" style={{ marginTop: '15px', color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{message}</p>}
+        {errorMessage && <p className="error-msg" style={{ marginTop: '15px', color: 'red', textAlign: 'center', fontWeight: 'bold' }}>{errorMessage}</p>}
       </form>
 
       <div className="auth-link">

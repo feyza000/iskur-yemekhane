@@ -1,80 +1,162 @@
-# backend/api/management/commands/populate_db.py
-
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from api.models import Survey, Question, Response, Answer
 import random
 from datetime import datetime, timedelta
+from django.utils import timezone
 
 class Command(BaseCommand):
-    help = 'Veritabanını sahte verilerle doldurur'
+    help = 'Populates the database with dummy data for demonstration'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Veri üretimi başlıyor...")
-
-        # 1. KULLANICILARI OLUŞTUR
-        students = []
-        names = ['Ahmet', 'Mehmet', 'Ayse', 'Fatma', 'Ali', 'Zeynep', 'Mustafa']
+        self.stdout.write(self.style.WARNING("🧹 Eski veriler temizleniyor... (Admin hariç)"))
         
-        for i, name in enumerate(names):
-            username = f"{name.lower()}{i+1}"
-            email = f"{username}@ozal.edu.tr"
-            # get_or_create: Varsa getirme, yoksa oluşturma
-            user, created = User.objects.get_or_create(username=username, defaults={'email': email})
-            if created:
-                user.set_password('123456') # Hepsinin şifresi: 123456
-                user.save()
-                self.stdout.write(f"Öğrenci oluşturuldu: {username}")
-            students.append(user)
+        # Temizlik
+        Response.objects.all().delete()
+        Question.objects.all().delete()
+        Survey.objects.all().delete()
+        # Sadece test öğrencilerini silelim, gerçek admin kalsın
+        User.objects.filter(username__startswith='student').delete()
 
-        # 2. ANKET 1: YEMEKHANE MEMNUNİYETİ
-        survey1, _ = Survey.objects.get_or_create(
+        self.stdout.write("👤 Kullanıcılar oluşturuluyor...")
+        
+        # 1. ADMIN & STUDENTS
+        # Admin zaten varsa dokunma, yoksa oluştur
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@ozal.edu.tr', 'admin123')
+            self.stdout.write(" - Admin oluşturuldu (admin / admin123)")
+
+        students = []
+        for i in range(1, 6):
+            username = f'student{i}'
+            user, created = User.objects.get_or_create(username=username, defaults={'email': f'{username}@ozal.edu.tr'})
+            if created:
+                user.set_password('123456')
+                user.save()
+            students.append(user)
+        self.stdout.write(f" - {len(students)} adet öğrenci oluşturuldu (Şifre: 123456)")
+
+        self.stdout.write("📝 Anketler oluşturuluyor...")
+
+        # ---------------------------------------------------------
+        # SURVEY 1: YEMEKHANE (Kapsamlı)
+        # ---------------------------------------------------------
+        s1 = Survey.objects.create(
             title="Ekim Ayı Yemekhane Memnuniyet Anketi",
-            defaults={'description': "Yemek kalitesi, hijyen ve çeşitlilik hakkındaki görüşleriniz.", 'is_active': True}
+            description="Üniversitemiz yemekhanesindeki hizmet kalitesini artırmak için görüşlerinize ihtiyacımız var.",
+            is_active=True
         )
 
         # Sorular
-        q1_1, _ = Question.objects.get_or_create(survey=survey1, order=1, defaults={'text': "Yemeklerin lezzetinden memnun musunuz?", 'question_type': 'star'})
-        q1_2, _ = Question.objects.get_or_create(survey=survey1, order=2, defaults={'text': "Porsiyonlar doyurucu mu?", 'question_type': 'choice', 'options': 'Evet, Hayır, Kısmen'})
-        q1_3, _ = Question.objects.get_or_create(survey=survey1, order=3, defaults={'text': "Menüde daha sık görmek istediğiniz yemekler nelerdir?", 'question_type': 'text'})
-
-        # 3. ANKET 2: BAHAR ŞENLİĞİ
-        survey2, _ = Survey.objects.get_or_create(
-            title="2025 Bahar Şenliği Planlaması",
-            defaults={'description': "Şenlikte hangi etkinlikleri görmek istersiniz?", 'is_active': True}
+        Question.objects.create(
+            survey=s1, order=1, text="Yemeklerin genel lezzetinden ne kadar memnunsunuz?", 
+            question_type='star', required=True, page_number=1
+        )
+        Question.objects.create(
+            survey=s1, order=2, text="Yemekhane hijyenini 1-10 arasında puanlayın.", 
+            question_type='scale', required=True, page_number=1
+        )
+        Question.objects.create(
+            survey=s1, order=3, text="Porsiyonlar doyurucu mu?", 
+            question_type='choice', options=["Evet, gayet yeterli", "İdare eder", "Hayır, yetersiz"], required=True, page_number=1
+        )
+        Question.objects.create(
+            survey=s1, order=4, text="Hangi öğünlerde yemekhaneyi kullanıyorsunuz?", 
+            question_type='multiple', options=["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği"], required=False, page_number=1
+        )
+        Question.objects.create(
+            survey=s1, order=5, text="Menüde daha sık görmek istediğiniz yemekler?", 
+            question_type='text', required=False, page_number=2
         )
 
-        q2_1, _ = Question.objects.get_or_create(survey=survey2, order=1, defaults={'text': "Şenlik kaç gün sürsün?", 'question_type': 'choice', 'options': '1 Gün, 2 Gün, 3 Gün'})
-        q2_2, _ = Question.objects.get_or_create(survey=survey2, order=2, defaults={'text': "Hangi müzik türü ağırlıklı olsun?", 'question_type': 'choice', 'options': 'Pop, Rock, Rap, Halk Müziği'})
-        q2_3, _ = Question.objects.get_or_create(survey=survey2, order=3, defaults={'text': "Genel beklentiniz nedir?", 'question_type': 'star'})
+        # ---------------------------------------------------------
+        # SURVEY 2: BAHAR ŞENLİĞİ (Kısa)
+        # ---------------------------------------------------------
+        s2 = Survey.objects.create(
+            title="2025 Bahar Şenliği Planlaması",
+            description="Bu yılki şenlikte hangi sanatçıları ve etkinlikleri görmek istersiniz?",
+            is_active=True
+        )
+        Question.objects.create(
+            survey=s2, order=1, text="Şenlik hangi tarihte yapılsın?", 
+            question_type='choice', options=["Mayıs Başı", "Mayıs Ortası", "Haziran Başı"], required=True
+        )
+        Question.objects.create(
+            survey=s2, order=2, text="Tercih ettiğiniz müzik türleri?", 
+            question_type='multiple', options=["Pop", "Hip-Hop", "Rock", "Elektronik", "Halk Müziği"], required=True
+        )
+        Question.objects.create(
+            survey=s2, order=3, text="Beklentiniz (1-5 Yıldız)", 
+            question_type='star', required=True
+        )
 
-        self.stdout.write("Anketler ve sorular oluşturuldu.")
+        # ---------------------------------------------------------
+        # SURVEY 3: ESKİ ANKET (Pasif)
+        # ---------------------------------------------------------
+        s3 = Survey.objects.create(
+            title="2024 Mezuniyet Töreni Anketi",
+            description="Geçmiş dönem anketi.",
+            is_active=False,
+            created_at=timezone.now() - timedelta(days=365)
+        )
 
-        # 4. RASTGELE CEVAPLAR OLUŞTUR
-        # Her öğrenci rastgele anketleri çözsün
-        surveys = [survey1, survey2]
+        self.stdout.write("💬 Rastgele cevaplar üretiliyor...")
+
+        # CEVAP ÜRETİMİ
+        surveys = [s1, s2]
         
         for student in students:
-            for s in surveys:
-                # %70 ihtimalle anketi çözmüş olsun
-                if random.random() > 0.3:
-                    # Daha önce çözmediyse
-                    if not Response.objects.filter(user=student, survey=s).exists():
-                        response = Response.objects.create(user=student, survey=s)
-                        
-                        for q in s.questions.all():
-                            val = ""
-                            if q.question_type == 'star':
-                                val = str(random.randint(1, 5))
-                            elif q.question_type == 'choice':
-                                options = [opt.strip() for opt in q.options.split(',')]
-                                val = random.choice(options)
-                            elif q.question_type == 'text':
-                                texts = ["Güzeldi", "Daha iyi olabilir", "Fena değil", "Harika!", "Geliştirilmeli"]
-                                val = random.choice(texts)
-                            
-                            Answer.objects.create(response=response, question=q, value=val)
-                        
-                        self.stdout.write(f"{student.username} -> {s.title} anketini çözdü.")
+            # Her öğrenci anketleri %80 ihtimalle çözsün
+            for survey in surveys:
+                if random.random() > 0.2:
+                    # Response oluştur
+                    response = Response.objects.create(user=student, survey=survey)
+                    
+                    # Soruları cevapla
+                    for q in survey.questions.all():
+                        val = ""
+                        num_val = None
 
-        self.stdout.write(self.style.SUCCESS('Veritabanı başarıyla dolduruldu.'))
+                        if q.question_type == 'star':
+                            # Yıldız: 1-5
+                            score = random.randint(3, 5) # Genelde mutlu olsunlar :)
+                            val = str(score)
+                            num_val = float(score)
+                        
+                        elif q.question_type == 'scale':
+                            # Ölçek: 1-10
+                            score = random.randint(5, 10)
+                            val = str(score)
+                            num_val = float(score)
+                        
+                        elif q.question_type == 'choice':
+                            # Tek seçim
+                            if q.options:
+                                val = random.choice(q.options)
+                        
+                        elif q.question_type == 'multiple':
+                            # Çoklu seçim: 1 veya 2 seçenek seçsinler
+                            if q.options:
+                                count = random.randint(1, min(2, len(q.options)))
+                                selected = random.sample(q.options, count)
+                                val = ", ".join(selected) # Basit string birleştirme
+                        
+                        elif q.question_type == 'text':
+                            # Text
+                            comments = ["Harika!", "Geliştirilmeli.", "Teşekkürler.", "Daha fazla sebze olsun.", "Memnunum."]
+                            val = random.choice(comments)
+                        
+                        elif q.question_type == 'date':
+                            val = "2025-05-15"
+
+                        # Cevabı kaydet
+                        Answer.objects.create(
+                            response=response,
+                            question=q,
+                            value=val,
+                            numeric_value=num_val
+                        )
+                    
+                    self.stdout.write(f"   -> {student.username} '{survey.title}' anketini doldurdu.")
+
+        self.stdout.write(self.style.SUCCESS('✅ Veritabanı başarıyla dolduruldu!'))

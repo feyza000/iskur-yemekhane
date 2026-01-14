@@ -52,6 +52,10 @@ class Answer(models.Model):
     # We will store the answer as text. It fits both numbers and text.
     # Senior Note: In larger projects this should be a JSONField, but CharField is sufficient for now.
     value = models.TextField(verbose_name="Cevap Değeri")
+    
+    # OPTIMIZATION: Store numeric value separately for SQL-level aggregation (AVG, SUM)
+    # This avoids Python-level loops and float() conversions.
+    numeric_value = models.FloatField(null=True, blank=True, db_index=True)
 
     def __str__(self):
         return f"{self.question.text}: {self.value}"

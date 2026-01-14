@@ -4,6 +4,8 @@ import { ResponseService } from '../services/response.service';
 import { SurveyService } from '../services/survey.service';
 import { StarInput, CheckboxInput, DateInput, ScaleInput } from '../components/QuestionInputs';
 
+import { toast } from 'react-toastify';
+
 function EditResponse() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -12,6 +14,7 @@ function EditResponse() {
     const [surveyTitle, setSurveyTitle] = useState('');
     const [questions, setQuestions] = useState([]);
     const [answers, setAnswers] = useState({});
+    const [response, setResponse] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -23,7 +26,7 @@ function EditResponse() {
 
             // 1. Cevabı (Response) çek
             const respData = await ResponseService.getById(id);
-            setResponse(respData);
+            setResponse(respData); // Used for payload construction
 
             // Gelen cevap zaten { "question_id": "value" } formatında değilse çevirmek gerekebilir
             // Ancak AnswerSerializer yapısına bağlı.
@@ -36,12 +39,12 @@ function EditResponse() {
 
             // 2. Anketi (Survey) çek
             const surveyData = await SurveyService.getById(respData.survey);
-            setSurvey(surveyData);
             setSurveyTitle(surveyData.title);
             setQuestions(surveyData.questions.sort((a, b) => a.order - b.order));
 
         } catch (err) {
-            alert("Veri yüklenirken hata oluştu.");
+            console.error("EditResponse Fetch Error:", err);
+            toast.error("Veri yüklenirken hata oluştu.");
             navigate('/profile');
         } finally {
             setLoading(false);
@@ -58,12 +61,13 @@ function EditResponse() {
         // Basit validasyon
         const missing = questions.find(q => !answers[q.id]);
         if (missing) {
-            alert(`Lütfen "${missing.text}" sorusunu cevaplayınız.`);
+            toast.warn(`Lütfen "${missing.text}" sorusunu cevaplayınız.`);
             return;
         }
 
         try {
             const payload = {
+                survey: response.survey, // Serializer requires this for validation even if not changing
                 answers: Object.entries(answers).map(([qId, val]) => ({
                     question: parseInt(qId),
                     value: val.toString()
@@ -73,9 +77,9 @@ function EditResponse() {
             // PUT isteği ile güncelle
             await ResponseService.update(id, payload);
 
-            alert("Cevabınız güncellendi!");
+            toast.success("Cevabınız güncellendi!");
             navigate('/profile');
-        } catch (err) { alert("Hata oluştu."); }
+        } catch (err) { toast.error("Hata oluştu."); }
     };
 
     if (loading) return <div style={{ textAlign: 'center', padding: '50px' }}>Yükleniyor...</div>;
@@ -107,7 +111,7 @@ function EditResponse() {
                         {/* --- TEK SEÇİM (RADIO) --- */}
                         {q.question_type === 'choice' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {q.options.split(',').map((opt, i) => (
+                                {(Array.isArray(q.options) ? q.options : (q.options || '').split(',')).map((opt, i) => (
                                     <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                                         <input
                                             type="radio" name={`q-${q.id}`}

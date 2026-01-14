@@ -86,9 +86,13 @@ class PasswordResetRequestView(APIView):
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
 
-        # 3. Send Email
+        # 3. Send Email (Robust Threading)
+        import logging
+        logger = logging.getLogger(__name__)
+
         def send_email_task(user_email, link):
             try:
+                logger.info(f"Attempting to send reset password email to {user_email}")
                 send_mail(
                     subject='Password Reset Request',
                     message=f'Click the link below to reset your password:\n\n{link}\n\nIf you did not request this, ignore this email.',
@@ -96,12 +100,15 @@ class PasswordResetRequestView(APIView):
                     recipient_list=[user_email],
                     fail_silently=False,
                 )
+                logger.info(f"Email sent successfully to {user_email}")
             except Exception as e:
-                print(f"Email Error: {e}")
+                logger.error(f"Failed to send email to {user_email}: {e}", exc_info=True)
+                # Future: Insert into a 'FailedEmail' table for retry
 
         email_thread = threading.Thread(
             target=send_email_task,
-            args=(user.email, reset_link)
+            args=(user.email, reset_link),
+            daemon=True # Ensure thread doesn't block shutdown, but might be killed if app stops.
         )
         email_thread.start()
 

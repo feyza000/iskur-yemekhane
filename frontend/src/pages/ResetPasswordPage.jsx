@@ -3,28 +3,26 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { request } from '../services/api';
 import { motion } from 'framer-motion';
 
+import { toast } from 'react-toastify';
+
 const ResetPasswordPage = () => {
     const { uid, token } = useParams();
     const navigate = useNavigate();
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setMessage('');
 
         if (password !== confirmPassword) {
-            setError('Passwords do not match.');
+            toast.warn('Passwords do not match.');
             return;
         }
 
         if (password.length < 8) {
-            setError('Password must be at least 8 characters long.');
+            toast.warn('Password must be at least 8 characters long.');
             return;
         }
 
@@ -40,7 +38,7 @@ const ResetPasswordPage = () => {
                 })
             });
 
-            setMessage('Password reset successful! Redirecting to login...');
+            toast.success('Password reset successful! Redirecting to login...');
 
             // Redirect after 3 seconds
             setTimeout(() => {
@@ -50,9 +48,9 @@ const ResetPasswordPage = () => {
         } catch (err) {
             console.error(err);
             if (err.error) {
-                setError(err.error);
+                toast.error(err.error);
             } else {
-                setError('An error occurred. The link may be invalid or expired.');
+                toast.error('An error occurred. The link may be invalid or expired.');
             }
         } finally {
             setLoading(false);
@@ -65,8 +63,6 @@ const ResetPasswordPage = () => {
                 <h2>Reset Password</h2>
                 <p>Enter your new password below.</p>
 
-                {message && <div className="success-message">{message}</div>}
-                {error && <div className="error-message">{error}</div>}
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">

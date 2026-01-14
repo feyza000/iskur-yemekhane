@@ -33,6 +33,10 @@ export const request = async (endpoint, options = {}) => {
             // window.location.href = '/login'; 
         }
 
+        if (response.status === 204) {
+            return null;
+        }
+
         const data = await response.json();
 
         if (!response.ok) {

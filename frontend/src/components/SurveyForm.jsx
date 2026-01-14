@@ -3,7 +3,7 @@ import { StarInput, CheckboxInput, DateInput, ScaleInput } from './QuestionInput
 // import { API_BASE_URL } from '../services/api';
 import { ResponseService } from '../services/response.service';
 
-import toast from 'react-hot-toast'; // Import toast
+import { toast } from 'react-toastify';
 
 function SurveyForm({ preloadedSurvey }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,9 +93,9 @@ function SurveyForm({ preloadedSurvey }) {
     });
 
     toast.promise(submitPromise, {
-      loading: 'Gönderiliyor...',
+      pending: 'Gönderiliyor...',
       success: 'Anketiniz başarıyla gönderildi! Teşekkürler.',
-      error: 'Gönderim sırasında bir hata oluştu.',
+      error: 'Gönderim sırasında bir hata oluştu.'
     });
   };
 

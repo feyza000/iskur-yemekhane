@@ -1,6 +1,9 @@
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AuthService } from '../services/auth.service';
+
+import { toast } from 'react-toastify';
 
 function LoginPage() {
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -24,12 +27,13 @@ function LoginPage() {
 
       // AuthService içinde localStorage set ediliyor zaten
       navigate('/');
-      window.location.reload();
+      toast.success("Giriş başarılı!");
 
     } catch (err) {
       // api.request throw { status, ...data } fırlatıyor
       const errorMsg = err.non_field_errors ? err.non_field_errors[0] : (err.detail || "Giriş bilgileri hatalı.");
       setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
@@ -38,12 +42,12 @@ function LoginPage() {
     e.preventDefault();
     try {
       const data = await AuthService.requestPasswordReset(forgotEmail);
-      alert(`${data.status}\n(DEV: Check backend terminal/console for the link!)`);
+      toast.success(data.status || "Sıfırlama bağlantısı gönderildi.");
 
       setShowForgotModal(false);
       setForgotEmail('');
     } catch (err) {
-      alert(err.error || "Hata oluştu.");
+      toast.error(err.error || "Hata oluştu.");
     }
   };
 

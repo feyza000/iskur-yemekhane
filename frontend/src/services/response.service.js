@@ -33,5 +33,11 @@ export const ResponseService = {
             method: 'PUT',
             body: JSON.stringify(data)
         });
+    },
+
+    delete: async (id) => {
+        return await request(`/responses/${id}/`, {
+            method: 'DELETE'
+        });
     }
 };

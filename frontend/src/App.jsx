@@ -22,7 +22,8 @@ import UserList from './pages/admin/UserList';// Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import SurveyList from './pages/admin/SurveyList';
 
-import { Toaster } from 'react-hot-toast'; // Import Toaster
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem('siteTheme') || 'light');
@@ -38,36 +39,38 @@ function App() {
   };
 
   return (
-    <AnimatePresence mode="wait">
-      <Toaster position="top-center" reverseOrder={false} /> {/* Add Toaster here */}
-      <Routes location={location} key={location.pathname}>
+    <>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
 
-        <Route path="/admin" element={<AdminLayout theme={theme} toggleTheme={toggleTheme} />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="surveys" element={<SurveyList />} />
-          <Route path="surveys/new" element={<NewSurvey />} />
-          <Route path="surveys/:id" element={<SurveyDetail />} />
-          <Route path="users" element={<UserList />} />
-        </Route>
-
-        {/* --- 2. PUBLIC ROTALARI (MainLayout Çatısı Altında) --- */}
-        <Route element={<MainLayout theme={theme} toggleTheme={toggleTheme} />}>
-
-          {/* Anasayfa direkt MainLayout içinde */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/response/:id/edit" element={<EditResponse />} />
-
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+          <Route path="/admin" element={<AdminLayout theme={theme} toggleTheme={toggleTheme} />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="surveys" element={<SurveyList />} />
+            <Route path="surveys/new" element={<NewSurvey />} />
+            <Route path="surveys/:id" element={<SurveyDetail />} />
+            <Route path="users" element={<UserList />} />
           </Route>
 
-        </Route>
+          {/* --- 2. PUBLIC ROTALARI (MainLayout Çatısı Altında) --- */}
+          <Route element={<MainLayout theme={theme} toggleTheme={toggleTheme} />}>
 
-      </Routes>
-    </AnimatePresence>
+            {/* Anasayfa direkt MainLayout içinde */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/response/:id/edit" element={<EditResponse />} />
+
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+            </Route>
+
+          </Route>
+
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 }
 
