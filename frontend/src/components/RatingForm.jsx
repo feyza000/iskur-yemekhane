@@ -1,5 +1,5 @@
-// frontend/src/components/RatingForm.jsx
 import React, { useState } from 'react';
+import { request } from '../services/api';
 
 function RatingForm({ mealId }) {
   const [score, setScore] = useState(0);
@@ -17,16 +17,12 @@ function RatingForm({ mealId }) {
     setLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/meals/${mealId}/rate/`, {
+      const response = await request(`/meals/${mealId}/rate/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        },
         body: JSON.stringify({ score: selectedScore })
       });
-      if (response.ok) console.log("Puanlandı");
-      else setMessage('Hata');
+      // console.log("Puanlandı", response);
+      // request helper throws on error, so if we are here it's ok.
     } catch (err) {
       setMessage('Ağ hatası');
     } finally {

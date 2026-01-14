@@ -12,7 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 import dj_database_url
+from dotenv import load_dotenv
+
+load_dotenv() # .env dosyasını yükle
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,12 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9v$81+r(ganv7o68e&z^xfj-stz!eo_k!co_u-0bte*s@1_s7p'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -86,14 +90,21 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # SQLite değil, PostgreSQL kullan diyoruz
-        'NAME': 'yemekhane_db',                     # pgAdmin'de oluşturduğumuz veritabanı adı
-        'USER': 'yemekhane_user',                   # pgAdmin'de oluşturduğumuz kullanıcı adı
-        'PASSWORD': 'user1',                        # yemekhane_user için belirlediğiniz şifre
-        'HOST': 'localhost',                        # Veritabanı kendi bilgisayarımızda (localhost)
-        'PORT': '5432',                             # Standart PostgreSQL portumuz
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'yemekhane_db'),
+        'USER': os.getenv('DB_USER', 'yemekhane_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+
+# Testing: Use SQLite to avoid "Permission Denied" on generic Postgres users
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
 
 
 # Password validation
@@ -142,10 +153,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #AUTH_USER_MODEL = 'api.User'
 
 # Frontend'imizin (Vite/React) çalıştığı adrese izin veriyoruz.
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# Frontend'imizin (Vite/React) çalıştığı adrese izin veriyoruz.
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
 
 # Frontend'in bize hangi BAŞLIKLARI (headers) yollamasına izin verdiğimizi
 # açıkça belirtiyoruz. Bu, 'preflight' (OPTIONS) isteği için gereklidir.
@@ -195,13 +204,16 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOW_ALL_ORIGINS = True # TODO Güvenlik için sonra sadece Vercel linkini ekleriz
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True # Sadece Development ortamında açık kalsın
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 # --- SMTP AYARLARI (GMAIL) ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'erenkeskinoglu@outlook.com'
-EMAIL_HOST_PASSWORD = 'nsrayzhfnecadmfe'
-DEFAULT_FROM_EMAIL = 'Malatya Turgut Özal Üniversitesi erenkeskinoglu@outlook.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@ozal.edu.tr')

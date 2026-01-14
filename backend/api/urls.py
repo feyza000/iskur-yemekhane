@@ -2,7 +2,7 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import SurveyViewSet, ResponseViewSet, RegisterView, LoginView, UserViewSet, QuestionViewSet, ChangePasswordView, ForgotPasswordView
+from .views import SurveyViewSet, ResponseViewSet, RegisterView, LoginView, UserViewSet, QuestionViewSet, ChangePasswordView, PasswordResetRequestView, PasswordResetConfirmView
 
 # Router kurulumu
 router = DefaultRouter()
@@ -16,5 +16,6 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
-    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('password-reset/request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
 ]

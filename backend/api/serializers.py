@@ -2,10 +2,10 @@
 
 from rest_framework import serializers
 from .models import Survey, Question, Response, Answer, User
-from rest_framework.authtoken.models import Token # Login için
-from django.contrib.auth import authenticate # Login için
+from rest_framework.authtoken.models import Token # For Login
+from django.contrib.auth import authenticate # For Login
 
-# --- KULLANICI İŞLEMLERİ (Aynı kalabilir) ---
+# --- USER OPERATIONS ---
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     class Meta:
@@ -28,7 +28,7 @@ class LoginSerializer(serializers.Serializer):
             return {'user': user}
         raise serializers.ValidationError("Giriş bilgileri hatalı.")
 
-# --- ANKET SİSTEMİ SERIALIZERLARI ---
+# --- SURVEY SYSTEM SERIALIZERS ---
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
@@ -42,14 +42,14 @@ class SurveySerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'questions', 'is_active', 'created_at']
 
 class AnswerSerializer(serializers.ModelSerializer):
-    """Cevap verirken kullanılacak yapı"""
+    """Structure used when submitting an answer"""
     class Meta:
         model = Answer
         fields = ['question', 'value']
 
 class ResponseSerializer(serializers.ModelSerializer):
-    """Öğrenci anketi gönderdiğinde çalışacak"""
-    answers = AnswerSerializer(many=True) # İçinde cevaplar listesi olacak
+    """Executed when a student submits a survey"""
+    answers = AnswerSerializer(many=True) # List of answers inside
 
     survey_title = serializers.CharField(source='survey.title', read_only=True)
 
@@ -58,41 +58,62 @@ class ResponseSerializer(serializers.ModelSerializer):
         fields = ['id', 'survey', 'survey_title', 'answers', 'submitted_at']
 
     def create(self, validated_data):
-        # DRF standart create metodu nested (iç içe) yazmayı desteklemez,
-        # o yüzden burayı elimizle yazıyoruz (Mid-Level hareket)
+        # DRF standard create method does not support nested writes by default,
+        # so we implement it manually.
         answers_data = validated_data.pop('answers')
         
-        # 1. Önce Cevap Paketini (Response) oluştur
-        # user bilgisini view içerisinden perform_create ile alacağız veya context'ten
+        # 1. First, create the Response package
+        # We will get user info from view via perform_create or context
         user = self.context['request'].user
         response = Response.objects.create(user=user, **validated_data)
 
-        # 2. Sonra içindeki tekil cevapları (Answer) oluştur ve pakete bağla
+        # 2. Then create individual answers (Answer) inside and link to package
         for answer_data in answers_data:
             Answer.objects.create(response=response, **answer_data)
 
         return response
     
     def update(self, instance, validated_data):
-        # 1. Gelen yeni cevapları al
+        # 1. Get new answers list
         answers_data = validated_data.pop('answers', [])
         
-        # 2. Cevap Paketinin (Response) kendisini güncelle (tarih vs.)
+        # 2. Update the Response package itself (date etc.)
         instance = super().update(instance, validated_data)
         
-        # 3. ESKİ CEVAPLARI SİL (En temiz yöntem budur)
-        instance.answers.all().delete()
+        # 3. SMART UPDATE (Preserve IDs)
+        # Fetch existing answers and map by Question ID for quick lookup
+        existing_answers = {ans.question_id: ans for ans in instance.answers.all()}
+        
+        # Track which questions we have processed to identify deletions later
+        processed_question_ids = []
 
-        # 4. YENİ CEVAPLARI OLUŞTUR
         for answer_data in answers_data:
-            Answer.objects.create(response=instance, **answer_data)
+            q_id = answer_data.get('question').id # 'question' is a model instance from validated_data
+            new_value = answer_data.get('value')
             
+            if q_id in existing_answers:
+                # UPDATE existing
+                ans = existing_answers[q_id]
+                ans.value = new_value
+                ans.save()
+                processed_question_ids.append(q_id)
+            else:
+                # CREATE new
+                Answer.objects.create(response=instance, **answer_data)
+                
+        # 4. OPTIONAL: Delete answers that are NOT in the new payload?
+        # If the form logic sends ALL answers every time, then yes, delete missing ones.
+        # Use set difference for efficiency
+        for q_id, ans in existing_answers.items():
+            if q_id not in processed_question_ids:
+                ans.delete()
+
         return instance
 
-# --- ADMIN KULLANICI YÖNETİMİ İÇİN ---
+# --- FOR ADMIN USER MANAGEMENT ---
 class UserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        # Admin bu alanları görecek ve değiştirebilecek
+        # Admin can see and edit these fields
         fields = ['id', 'username', 'email', 'is_staff', 'is_superuser', 'date_joined']
-        read_only_fields = ['date_joined'] # Kayıt tarihi değiştirilemesin
+        read_only_fields = ['date_joined'] # Registration date cannot be changed

@@ -4,6 +4,18 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/components.css';
 import SurveyForm from '../components/SurveyForm';
+// import { API_BASE_URL } from '../services/api';
+import { SurveyService } from '../services/survey.service';
+
+/**
+ * HomePage Component
+ * 
+ * Displays the list of active surveys to the user.
+ * Features:
+ * - List active surveys
+ * - Search functionality (Client-side trigger, Server-side filtering)
+ * - Accordion style completion
+ */
 
 function HomePage() {
     const [surveys, setSurveys] = useState([]);
@@ -32,21 +44,20 @@ function HomePage() {
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
 
+    /**
+     * Fetches surveys from the API.
+     * Supports optional search query.
+     * 
+     * @param {string} token - Auth Token
+     * @param {string} [query=""] - Optional search term
+     */
     const fetchSurveys = async (token, query = "") => {
         try {
-            // Backend'e parametre gönderiyoruz
-            const url = query
-                ? `http://localhost:8000/api/surveys/?search=${encodeURIComponent(query)}`
-                : 'http://localhost:8000/api/surveys/';
-
-            const response = await fetch(url, {
-                headers: { 'Authorization': `Token ${token}` }
-            });
-            if (response.ok) {
-                setSurveys(await response.json());
-            }
-        } catch (error) {
-            console.error("Hata:", error);
+            const data = await SurveyService.getAll(searchTerm);
+            // data direkt array dönüyor (API yapsına göre değişir ama request helper json parse ediyor)
+            setSurveys(data);
+        } catch (err) {
+            console.error("Anket çekme hatası:", err);
         } finally {
             setLoading(false);
         }
